@@ -122,6 +122,121 @@ svg text{fill:var(--mut);font-size:10px}
 /* ======================= FOOD DATABASE (per 100 g) =======================
    [name, kcal, protein, carbs, fat, servingLabel, servingGrams, category] */
 const FOODS_RAW = [
+// South Indian / Tamil Nadu  [name,kcal,P,C,F,serving,g,cat,tags]
+["Idli",132,4.5,27,0.4,"1 idli",40,"South Indian","iddli tiffin"],
+["Rava idli",180,4.5,25,7,"1 idli",50,"South Indian","sooji semolina"],
+["Kanchipuram idli",190,5,27,7,"1 idli",60,"South Indian","kancheepuram"],
+["Sambar idli",95,3.5,17,1.5,"1 plate (2 idli)",250,"South Indian","idli sambar"],
+["Mini idli in sambar",100,3.5,17,2,"1 bowl",250,"South Indian","14 idli"],
+["Dosa, plain",168,3.9,29,3.7,"1 dosa",85,"South Indian","dosai thosai"],
+["Masala dosa",190,4,26,7.5,"1 dosa",175,"South Indian","dosai potato"],
+["Ghee roast dosa",260,4,32,13,"1 dosa",100,"South Indian","nei roast dosai"],
+["Paper roast dosa",290,5,36,14,"1 dosa",120,"South Indian","dosai"],
+["Onion dosa",180,4,27,6,"1 dosa",110,"South Indian","vengaya dosai"],
+["Rava dosa",210,4,28,9,"1 dosa",100,"South Indian","sooji dosai"],
+["Podi dosa",220,5,30,9,"1 dosa",100,"South Indian","milagai podi dosai"],
+["Egg dosa",200,8,22,9,"1 dosa",120,"South Indian","muttai dosai"],
+["Set dosa",165,4,29,3.5,"1 piece",60,"South Indian","dosai"],
+["Kal dosa",160,4,30,2.5,"1 dosa",70,"South Indian","kal dosai"],
+["Ragi dosa",150,4,26,3.5,"1 dosa",80,"South Indian","kezhvaragu finger millet"],
+["Uthappam",175,4.5,27,5.5,"1 uthappam",150,"South Indian","uttapam oothappam onion"],
+["Adai",190,8,27,5.5,"1 adai",100,"South Indian","lentil dosai"],
+["Pesarattu",160,8,22,4.5,"1 pesarattu",100,"South Indian","moong green gram dosa"],
+["Appam",145,2.5,28,2.5,"1 appam",60,"South Indian","aappam"],
+["Idiyappam",150,2.5,33,0.5,"1 piece",40,"South Indian","string hoppers sevai"],
+["Puttu",175,3.5,37,1.5,"1 piece",120,"South Indian","pittu"],
+["Kuzhi paniyaram",190,4.5,27,7,"4 pieces",100,"South Indian","paniyaram"],
+["Ven pongal",160,4,22,6,"1 cup",200,"South Indian","pongal khara"],
+["Sakkarai pongal",230,3.5,40,6.5,"1 cup",200,"South Indian","sweet pongal chakkarai"],
+["Rava upma",150,3.5,22,5.5,"1 cup",200,"South Indian","upma uppuma sooji"],
+["Semiya upma",150,3.5,23,5,"1 cup",200,"South Indian","vermicelli upma"],
+["Rava kichadi",160,3.5,22,6.5,"1 cup",200,"South Indian","khichdi kitchadi"],
+["Poori",340,6,42,17,"1 poori",30,"South Indian","puri"],
+["Poori masala (potato)",110,2,14,5.5,"1 cup",150,"South Indian","kizhangu"],
+["Parotta",330,7,46,13,"1 parotta",90,"South Indian","porotta barotta"],
+["Kothu parotta (egg)",220,8,25,10,"1 plate",300,"South Indian","kothu porotta"],
+["Chicken kothu parotta",230,11,24,10,"1 plate",300,"South Indian","kothu porotta"],
+["Salna",90,3,6,6,"1 cup",150,"South Indian","parotta gravy"],
+["Ragi kali / koozh",110,2.5,24,0.5,"1 ball",150,"South Indian","kezhvaragu mudde"],
+["Kambu koozh",60,1.8,12,0.6,"1 glass",250,"South Indian","pearl millet"],
+["Medu vada",290,9,28,16,"1 vadai",50,"South Indian","vadai ulundhu vada"],
+["Paruppu vadai",300,12,30,15,"1 vadai",45,"South Indian","masala vada"],
+["Sambar vadai",140,5,15,7,"1 vadai in sambar",150,"South Indian","vada"],
+["Thayir vadai",150,5,13,8.5,"1 vadai",120,"South Indian","curd vada dahi vada"],
+["Rasam vadai",120,4,13,6,"1 vadai in rasam",150,"South Indian","vada"],
+["Bonda",280,5,30,15,"1 bonda",50,"South Indian","urulai bonda"],
+["Bajji",240,3,28,13,"2 pieces",80,"South Indian","vazhakkai bajji milagai"],
+// rice dishes
+["Rice, cooked (ponni)",130,2.7,28,0.3,"1 cup",160,"South Indian","sadam saadam white rice"],
+["Rice, parboiled, cooked",123,2.6,27,0.3,"1 cup",170,"South Indian","puzhungal arisi boiled rice"],
+["Curd rice",120,3.4,19,3.2,"1 cup",220,"South Indian","thayir sadam thayir saadam"],
+["Sambar rice",150,4.5,23,4.5,"1 plate",300,"South Indian","sambar sadam bisibelebath"],
+["Rasam rice",110,2.5,22,1.5,"1 plate",300,"South Indian","rasam sadam"],
+["Lemon rice",165,2.8,28,4.8,"1 cup",200,"South Indian","elumichai sadam"],
+["Tamarind rice",190,3,30,6.5,"1 cup",200,"South Indian","puliyodarai puli sadam"],
+["Tomato rice",165,3,27,5,"1 cup",200,"South Indian","thakkali sadam"],
+["Coconut rice",200,3,28,8.5,"1 cup",200,"South Indian","thengai sadam"],
+["Ghee rice",210,3,30,8.5,"1 cup",200,"South Indian","nei sadam"],
+["Chicken biryani (Dindigul/Ambur)",180,9,21,6.5,"1 plate",350,"South Indian","biriyani seeraga samba"],
+["Mutton biryani",200,9,21,9,"1 plate",350,"South Indian","biriyani"],
+["Egg biryani",175,6.5,23,6.5,"1 plate",350,"South Indian","muttai biriyani"],
+["Kuska (plain biryani)",170,3.5,25,6.5,"1 plate",300,"South Indian","biriyani"],
+// kuzhambu, curries
+["Sambar",65,3.2,9,1.8,"1 cup",240,"South Indian","kuzhambu"],
+["Rasam",30,1,5,0.7,"1 cup",240,"South Indian","saathamudhu milagu"],
+["Vatha kuzhambu",80,1.5,8,5,"1 cup",150,"South Indian","vathal kulambu"],
+["Kara kuzhambu",90,2,9,5.5,"1 cup",150,"South Indian","puli kulambu"],
+["Mor kuzhambu",70,2.5,5,4.5,"1 cup",200,"South Indian","moru kulambu"],
+["Paruppu (dal with ghee)",130,7,17,3.8,"1 cup",150,"South Indian","paruppu sadam dal"],
+["Kootu",90,4,11,3.5,"1 cup",150,"South Indian","chow chow kootu"],
+["Poriyal",85,2,8,5.5,"1 cup",120,"South Indian","beans cabbage carrot"],
+["Avial",110,2.5,8,8,"1 cup",150,"South Indian","aviyal"],
+["Keerai masiyal",70,3.5,6,3.5,"1 cup",150,"South Indian","spinach greens"],
+["Urulai roast",150,2,18,8,"1 cup",150,"South Indian","potato fry kizhangu"],
+["Vazhakkai fry",160,1.5,22,8,"1 cup",120,"South Indian","raw banana"],
+["Thayir pachadi",70,2.5,5,4.5,"1 cup",120,"South Indian","raita curd"],
+["Meen kuzhambu",110,10,5,5.5,"1 cup",200,"South Indian","fish curry kulambu"],
+["Meen varuval",220,22,6,12,"1 piece",80,"South Indian","fish fry"],
+["Chettinad chicken",170,15,5,10,"1 cup",200,"South Indian","kozhi curry"],
+["Chicken 65",260,20,10,15,"1 portion",150,"South Indian","fried chicken"],
+["Pepper chicken",190,20,5,10,"1 portion",150,"South Indian","milagu kozhi"],
+["Mutton kuzhambu",190,15,5,12,"1 cup",200,"South Indian","kari kulambu curry"],
+["Mutton chukka",240,22,5,15,"1 portion",150,"South Indian","sukka varuval"],
+["Egg curry",140,8,5,10,"1 cup",200,"South Indian","muttai kuzhambu"],
+["Egg podimas",200,12,3,15,"1 portion",100,"South Indian","muttai burji"],
+["Prawn thokku",170,17,6,9,"1 portion",150,"South Indian","eral"],
+// sides
+["Coconut chutney",210,2.5,8,19,"2 tbsp",30,"South Indian","thengai chutney"],
+["Tomato chutney",110,1.5,9,8,"2 tbsp",30,"South Indian","thakkali"],
+["Mint / coriander chutney",90,2,6,7,"2 tbsp",30,"South Indian","pudina kothamalli"],
+["Peanut chutney",300,11,12,24,"2 tbsp",30,"South Indian","verkadalai"],
+["Idli podi",400,18,45,15,"1 tbsp",10,"South Indian","milagai podi gunpowder"],
+["Gingelly (sesame) oil",884,0,0,100,"1 tsp",5,"South Indian","nallennai"],
+["Appalam",470,18,45,24,"1 appalam",8,"South Indian","papad pappadam"],
+["Pickle",200,1,6,19,"1 tsp",10,"South Indian","oorugai mango lime"],
+// snacks & sweets
+["Murukku",520,9,58,28,"2 pieces",30,"South Indian","chakli"],
+["Mixture",520,13,45,32,"1 handful",30,"South Indian","madras mixture"],
+["Thattai",500,8,58,26,"2 pieces",30,"South Indian","nippattu"],
+["Sundal",150,7.5,21,4,"1 cup",150,"South Indian","chana channa"],
+["Banana chips",520,2.3,58,33,"1 handful",30,"South Indian","nendran"],
+["Mysore pak",560,6,45,40,"1 piece",30,"South Indian","sweet"],
+["Boondi laddu",430,6,55,21,"1 laddu",40,"South Indian","ladoo sweet"],
+["Semiya payasam",160,4,24,5.5,"1 cup",150,"South Indian","kheer sweet"],
+["Rava kesari",330,2.5,48,14,"1 cup",120,"South Indian","kesari sweet"],
+["Adhirasam",400,3,60,16,"1 piece",40,"South Indian","sweet"],
+["Jangiri",380,3,58,15,"1 piece",40,"South Indian","jalebi imarti sweet"],
+["Tirunelveli halwa",420,2,55,22,"1 piece",50,"South Indian","halwa sweet"],
+// drinks & fruit
+["Filter coffee (milk & sugar)",60,2,8,2,"1 tumbler",150,"South Indian","kaapi kapi"],
+["Tea with milk & sugar",50,1.5,8,1.5,"1 cup",150,"South Indian","chai"],
+["Buttermilk (neer mor)",15,1,1.5,0.5,"1 glass",250,"South Indian","moru chaas"],
+["Rose milk",85,3,13,2.5,"1 glass",250,"South Indian","paal"],
+["Badam milk",110,3.5,15,4,"1 glass",250,"South Indian","almond milk"],
+["Tender coconut water",19,0.7,3.7,0.2,"1 coconut",300,"South Indian","elaneer ilaneer"],
+["Jackfruit",95,1.7,23,0.6,"1 cup",165,"South Indian","palapazham"],
+["Guava",68,2.6,14,1,"1 fruit",100,"South Indian","koyya"],
+["Sapota",83,0.4,20,1.1,"1 fruit",100,"South Indian","chikoo sapodilla"],
 // Fruit
 ["Apple",52,0.3,14,0.2,"1 medium",182,"Fruit"],["Banana",89,1.1,23,0.3,"1 medium",118,"Fruit"],["Orange",47,0.9,12,0.1,"1 medium",131,"Fruit"],
 ["Grapes",69,0.7,18,0.2,"1 cup",151,"Fruit"],["Strawberries",32,0.7,7.7,0.3,"1 cup",152,"Fruit"],["Blueberries",57,0.7,14,0.3,"1 cup",148,"Fruit"],
@@ -144,16 +259,16 @@ const FOODS_RAW = [
 ["Quinoa, cooked",120,4.4,21,1.9,"1 cup",185,"Grains"],["Couscous, cooked",112,3.8,23,0.2,"1 cup",157,"Grains"],["Tortilla, flour",306,8,51,8,"1 tortilla",45,"Grains"],
 // Indian
 ["Chapati / Roti",297,9.8,46,7.5,"1 roti",40,"Indian"],["Naan",310,9,50,8,"1 naan",90,"Indian"],["Paratha, plain",326,6.4,45,13,"1 paratha",80,"Indian"],
-["Idli",132,4.5,27,0.4,"1 idli",40,"Indian"],["Dosa, plain",168,3.9,29,3.7,"1 dosa",85,"Indian"],["Masala dosa",190,4,26,7.5,"1 dosa",175,"Indian"],
-["Sambar",65,3.2,9,1.8,"1 cup",240,"Indian"],["Rasam",30,1,5,0.7,"1 cup",240,"Indian"],["Coconut chutney",210,2.5,8,19,"2 tbsp",30,"Indian"],
-["Upma",150,3.5,22,5.5,"1 cup",200,"Indian"],["Pongal (ven)",160,4,22,6,"1 cup",200,"Indian"],["Poha",158,3,27,4,"1 cup",160,"Indian"],
+
+
+["Poha",158,3,27,4,"1 cup",160,"Indian"],
 ["Dal (lentil curry)",116,6.8,15,3.2,"1 cup",200,"Indian"],["Dal makhani",150,6,14,8,"1 cup",240,"Indian"],["Rajma curry",130,6,16,4.5,"1 cup",240,"Indian"],
 ["Chana masala",164,7,22,5.5,"1 cup",240,"Indian"],["Paneer butter masala",230,8.5,8,18,"1 cup",240,"Indian"],["Palak paneer",150,7,6,11,"1 cup",240,"Indian"],
 ["Chicken curry",150,14,5,8.5,"1 cup",240,"Indian"],["Butter chicken",190,13,7,12,"1 cup",240,"Indian"],["Chicken biryani",175,8,22,6,"1 plate",300,"Indian"],
-["Veg biryani",150,3.5,24,4.5,"1 plate",300,"Indian"],["Curd rice",120,3.4,19,3.2,"1 cup",220,"Indian"],["Lemon rice",165,2.8,28,4.8,"1 cup",200,"Indian"],
-["Aloo gobi",95,2.2,11,5,"1 cup",200,"Indian"],["Vada (medu)",290,9,28,16,"1 vada",50,"Indian"],["Samosa",262,4.5,32,13,"1 samosa",100,"Indian"],
+["Veg biryani",150,3.5,24,4.5,"1 plate",300,"Indian"],
+["Aloo gobi",95,2.2,11,5,"1 cup",200,"Indian"],["Samosa",262,4.5,32,13,"1 samosa",100,"Indian"],
 ["Pakora / Bhaji",300,7,28,18,"5 pieces",80,"Indian"],["Paneer",265,18,3.6,20,"100 g",100,"Indian"],["Gulab jamun",323,5,50,12,"1 piece",40,"Indian"],
-["Masala chai (with milk & sugar)",55,1.8,8,1.8,"1 cup",200,"Indian"],["Filter coffee (milk & sugar)",60,2,8,2,"1 tumbler",150,"Indian"],["Lassi, sweet",90,3,14,2.5,"1 glass",250,"Indian"],
+["Masala chai (with milk & sugar)",55,1.8,8,1.8,"1 cup",200,"Indian"],["Lassi, sweet",90,3,14,2.5,"1 glass",250,"Indian"],
 // Protein
 ["Chicken breast, grilled",165,31,0,3.6,"1 breast",120,"Protein"],["Chicken thigh, roasted",209,26,0,11,"1 thigh",100,"Protein"],["Egg, boiled",155,13,1.1,11,"1 large",50,"Protein"],
 ["Egg, fried",196,14,0.8,15,"1 large",46,"Protein"],["Omelette (2 eggs)",154,11,0.6,12,"1 omelette",120,"Protein"],["Salmon, baked",206,22,0,12,"1 fillet",150,"Protein"],
@@ -191,7 +306,8 @@ const FOODS_RAW = [
 ["Cola Zero / Diet",0.3,0,0,0,"1 can",330,"Drinks"],["Beer",43,0.5,3.6,0,"1 bottle",500,"Drinks"],["Wine, red",85,0.1,2.6,0,"1 glass",150,"Drinks"],
 ["Apfelschorle",24,0,5.5,0,"1 glass",300,"Drinks"],["Smoothie, fruit",55,0.8,13,0.3,"1 bottle",250,"Drinks"],["Protein shake (milk)",80,9,6,2,"1 shake",330,"Drinks"],
 ];
-const FOODS = FOODS_RAW.map((r,i)=>({id:"d"+i,name:r[0],kcal:r[1],p:r[2],c:r[3],f:r[4],sLabel:r[5],sG:r[6],cat:r[7]}));
+const slug=t=>t.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+const FOODS = FOODS_RAW.map(r=>({id:"f-"+slug(r[0]),name:r[0],kcal:r[1],p:r[2],c:r[3],f:r[4],sLabel:r[5],sG:r[6],cat:r[7],tags:r[8]||""}));
 
 /* Exercises: [name, MET] */
 const EXERCISES = [["Walking (moderate)",3.5],["Walking (brisk)",4.3],["Running (8 km/h)",8.3],["Running (10 km/h)",9.8],["Running (12 km/h)",11.5],
@@ -386,7 +502,7 @@ function openSearch(meal,photoId){
       let list=allFoods();
       if(searchCat==="Recent") list=S.recent.map(findFood).filter(Boolean);
       else if(searchCat!=="All") list=list.filter(f=>f.cat===searchCat);
-      if(q){ const words=q.split(/\s+/); list=list.filter(f=>words.every(w=>f.name.toLowerCase().includes(w)));
+      if(q){ const words=q.split(/\s+/); list=list.filter(f=>{ const h=(f.name+" "+(f.tags||"")).toLowerCase(); return words.every(w=>h.includes(w)); });
         list.sort((a,b)=>(a.name.toLowerCase().startsWith(q)?0:1)-(b.name.toLowerCase().startsWith(q)?0:1)); }
       else if(searchCat==="All"){ const rec=S.recent.map(findFood).filter(Boolean); list=[...rec,...list.filter(f=>!S.recent.includes(f.id))]; }
       b.querySelector("#res").innerHTML=list.slice(0,80).map(f=>`<div class="li" data-id="${f.id}"><div class="grow"><div class="nm">${esc(f.name)}</div><div class="mut sm">${esc(f.sLabel)} (${r0(f.sG)} g) · ${r0(f.kcal*f.sG/100)} kcal</div></div><span style="color:var(--acc);font-size:22px">＋</span></div>`).join("")||`<div class="empty">No match. Use "New food" or "Quick" to add it.</div>`;
@@ -490,6 +606,10 @@ async function testAI(){ const k=$('#ak').value.trim(); if(!k){toast("Enter a ke
   if(!navigator.onLine){toast("You're offline");return;} toast("Testing…");
   const c=document.createElement("canvas"); c.width=c.height=32; const g=c.getContext("2d"); g.fillStyle="#f5a524"; g.fillRect(0,0,32,32);
   try{ const r=await callAI(c.toDataURL("image/jpeg").split(",")[1],'Reply with JSON {"ok":true}'); toast("✅ Connected via "+r.via); render(); }catch(e){ toast("❌ "+e.message); } }
+function migrateFoodIds(){ const byName={}; FOODS.forEach(f=>byName[f.name]=f.id);
+  Object.values(S.days).forEach(d=>d.food.forEach(e=>{ if(e.foodId&&/^d\d+$/.test(e.foodId)){ if(byName[e.name]) e.foodId=byName[e.name]; else delete e.foodId; } }));
+  S.saved.forEach(m=>m.items.forEach(e=>{ if(e.foodId&&/^d\d+$/.test(e.foodId)){ if(byName[e.name]) e.foodId=byName[e.name]; else delete e.foodId; } }));
+  S.recent=S.recent.filter(id=>!/^d\d+$/.test(id)); }
 function keyType(k){ k=(k||"").trim(); return k.startsWith("AIza")?"gemini":k.startsWith("sk-ant")?"anthropic":k.startsWith("sk-or-")?"openrouter":null; }
 function normalizeKeys(){ const st=S.settings;
   if(keyType(st.apiKey)==="gemini"){ st.geminiKey=st.apiKey.trim(); st.apiKey=""; }
@@ -584,7 +704,7 @@ function photoReview(pid,aiData){
 async function runAI(pid,dataUrl,meal,b){
   const box=b.querySelector("#aiBox"); box.innerHTML=`<div class="card" style="background:var(--card2)"><span class="spin"></span> Analysing your plate…</div>`;
   try{
-    const prompt=`You are a nutrition estimator. Identify each distinct food or drink in this photo and estimate the portion in grams and its nutrition. Consider plate size and typical serving sizes; South Indian, North Indian and German dishes are common for this user. Reply ONLY with JSON: {"items":[{"name":string,"grams":number,"kcal":number,"protein":number,"carbs":number,"fat":number}],"confidence":"low"|"medium"|"high","note":string}`;
+    const prompt=`You are a nutrition estimator. Identify each distinct food or drink in this photo and estimate the portion in grams and its nutrition. Consider plate size and typical serving sizes; This user mostly eats Tamil Nadu / South Indian food (idli, dosa, sambar, rasam, kuzhambu, poriyal, curd rice, biryani, parotta) and also German food; use Tamil dish names where they fit and account for ghee and oil. Reply ONLY with JSON: {"items":[{"name":string,"grams":number,"kcal":number,"protein":number,"carbs":number,"fat":number}],"confidence":"low"|"medium"|"high","note":string}`;
     const ai=await callAI(dataUrl.split(",")[1],prompt); const txt=ai.text; const m=txt.match(/\{[\s\S]*\}/); if(!m) throw new Error("Unexpected AI reply"); const out=JSON.parse(m[0]);
     const items=(out.items||[]).map(i=>({name:i.name,grams:+i.grams||0,kcal:+i.kcal||0,p:+i.protein||0,c:+i.carbs||0,f:+i.fat||0,on:true,scale:1}));
     if(!items.length) throw new Error("No food recognised");
@@ -722,7 +842,7 @@ function renderMore(){
     <div class="grid2" style="margin-top:10px"><button class="btn sec" onclick="saveOR();toast('Backup saved')">Save</button><button class="btn sec" onclick="testOR()">Test backup</button></div></div>
   <div class="card"><h2>Backup</h2><p class="mut sm" style="margin-top:0">Your data lives only on this phone. Export a backup now and then.</p>
     <div class="grid2"><button class="btn sec" onclick="exportData()">⬇️ Export</button><button class="btn sec" onclick="$('#importInput').click()">⬆️ Import</button></div></div>
-  <div class="card"><h2>About</h2><div class="mut sm">FuelTrack v1.3 · ${FOODS.length} built-in foods · Calorie estimates are approximate; not medical advice.</div>
+  <div class="card"><h2>About</h2><div class="mut sm">FuelTrack v1.4 · ${FOODS.length} built-in foods · Calorie estimates are approximate; not medical advice.</div>
     <button class="btn danger blk" onclick="resetAll()">Erase all data</button></div>`;
 }
 async function exportData(){
@@ -739,7 +859,7 @@ function resetAll(){ openSheet(`<h3>Erase everything?</h3><p class="mut">This de
 /* ======================= BOOT ======================= */
 (async()=>{
   try{ S=await DB.get("state"); }catch(e){}
-  S={...structuredClone(DEFAULT_STATE),...(S||{})}; S.settings={...DEFAULT_STATE.settings,...S.settings}; normalizeKeys();
+  S={...structuredClone(DEFAULT_STATE),...(S||{})}; S.settings={...DEFAULT_STATE.settings,...S.settings}; normalizeKeys(); migrateFoodIds();
   render();
   if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
   if("serviceWorker" in navigator && location.protocol.startsWith("http")){
