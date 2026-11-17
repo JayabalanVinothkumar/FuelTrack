@@ -229,7 +229,17 @@ const FOODS_RAW = [
 ["Tirunelveli halwa",420,2,55,22,"1 piece",50,"South Indian","halwa sweet"],
 // drinks & fruit
 ["Filter coffee (milk & sugar)",60,2,8,2,"1 tumbler",150,"South Indian","kaapi kapi"],
-["Tea with milk & sugar",50,1.5,8,1.5,"1 cup",150,"South Indian","chai"],
+["Indian tea – full milk, 2 tsp sugar",85,3.3,10.1,3.5,"1 cup",150,"South Indian","tea chai teh milk tea paal tea sugar"],
+["Indian tea – full milk, 1 tsp sugar",74,3.3,7.5,3.5,"1 cup",150,"South Indian","tea chai teh milk tea paal tea sugar"],
+["Indian tea – full milk, no sugar",64,3.3,4.8,3.5,"1 cup",150,"South Indian","tea chai teh milk tea paal tea sugarless"],
+["Indian tea – low-fat milk 1.5%, 2 tsp sugar",68,3.4,10.2,1.5,"1 cup",150,"South Indian","tea chai teh milk tea fettarme milch"],
+["Indian tea – half milk/half water, 2 tsp sugar",53,1.65,7.7,1.75,"1 cup",150,"South Indian","tea chai teh milk tea water"],
+["Indian tea – half milk/half water, 1 tsp sugar",42,1.65,5.1,1.75,"1 cup",150,"South Indian","tea chai teh milk tea water"],
+["Indian coffee – full milk, 2 tsp sugar",87,3.4,10.3,3.5,"1 cup",150,"South Indian","coffee kaapi kapi bru nescafe instant milk coffee sugar"],
+["Indian coffee – full milk, 1 tsp sugar",76,3.4,7.7,3.5,"1 cup",150,"South Indian","coffee kaapi kapi bru nescafe instant milk coffee sugar"],
+["Indian coffee – full milk, no sugar",66,3.4,5.0,3.5,"1 cup",150,"South Indian","coffee kaapi kapi bru nescafe instant milk coffee sugarless"],
+["Indian coffee – low-fat milk 1.5%, 2 tsp sugar",70,3.5,10.4,1.5,"1 cup",150,"South Indian","coffee kaapi kapi bru nescafe fettarme milch"],
+["Indian coffee – half milk/half water, 2 tsp sugar",55,1.75,7.9,1.75,"1 cup",150,"South Indian","coffee kaapi kapi bru nescafe water"],
 ["Buttermilk (neer mor)",15,1,1.5,0.5,"1 glass",250,"South Indian","moru chaas"],
 ["Rose milk",85,3,13,2.5,"1 glass",250,"South Indian","paal"],
 ["Badam milk",110,3.5,15,4,"1 glass",250,"South Indian","almond milk"],
@@ -502,7 +512,7 @@ function openSearch(meal,photoId){
       let list=allFoods();
       if(searchCat==="Recent") list=S.recent.map(findFood).filter(Boolean);
       else if(searchCat!=="All") list=list.filter(f=>f.cat===searchCat);
-      if(q){ const words=q.split(/\s+/); list=list.filter(f=>{ const h=(f.name+" "+(f.tags||"")).toLowerCase(); return words.every(w=>h.includes(w)); });
+      if(q){ const words=q.split(/\s+/); list=list.filter(f=>{ const toks=(f.name+" "+(f.tags||"")).toLowerCase().split(/[^a-z0-9%.]+/); return words.every(w=>toks.some(t=>t.startsWith(w))); });
         list.sort((a,b)=>(a.name.toLowerCase().startsWith(q)?0:1)-(b.name.toLowerCase().startsWith(q)?0:1)); }
       else if(searchCat==="All"){ const rec=S.recent.map(findFood).filter(Boolean); list=[...rec,...list.filter(f=>!S.recent.includes(f.id))]; }
       b.querySelector("#res").innerHTML=list.slice(0,80).map(f=>`<div class="li" data-id="${f.id}"><div class="grow"><div class="nm">${esc(f.name)}</div><div class="mut sm">${esc(f.sLabel)} (${r0(f.sG)} g) · ${r0(f.kcal*f.sG/100)} kcal</div></div><span style="color:var(--acc);font-size:22px">＋</span></div>`).join("")||`<div class="empty">No match. Use "New food" or "Quick" to add it.</div>`;
@@ -842,7 +852,7 @@ function renderMore(){
     <div class="grid2" style="margin-top:10px"><button class="btn sec" onclick="saveOR();toast('Backup saved')">Save</button><button class="btn sec" onclick="testOR()">Test backup</button></div></div>
   <div class="card"><h2>Backup</h2><p class="mut sm" style="margin-top:0">Your data lives only on this phone. Export a backup now and then.</p>
     <div class="grid2"><button class="btn sec" onclick="exportData()">⬇️ Export</button><button class="btn sec" onclick="$('#importInput').click()">⬆️ Import</button></div></div>
-  <div class="card"><h2>About</h2><div class="mut sm">FuelTrack v1.4 · ${FOODS.length} built-in foods · Calorie estimates are approximate; not medical advice.</div>
+  <div class="card"><h2>About</h2><div class="mut sm">FuelTrack v1.5 · ${FOODS.length} built-in foods · Calorie estimates are approximate; not medical advice.</div>
     <button class="btn danger blk" onclick="resetAll()">Erase all data</button></div>`;
 }
 async function exportData(){
