@@ -35,5 +35,13 @@ Tip: in Google AI Studio, restrict the key to the "Generative Language API" so i
 - Progress: 7/14/30-day calorie chart, average macros, weight trend, 5-week projection
 - Backup export/import (JSON), erase all data
 
+## Free backup: OpenRouter
+When Gemini hits its daily free limit, is overloaded or can't be reached, FuelTrack automatically sends the photo to OpenRouter instead.
+1. Sign up at https://openrouter.ai (free, no card needed), then go to **Keys → Create key** and copy it (`sk-or-v1-…`).
+2. In FuelTrack: **More → Backup AI: OpenRouter**, paste the key, then tap **Save** and **Test backup**.
+3. Leave the model as `openrouter/free`. It picks a free vision model automatically.
+
+The AI result shows which service answered (for example "via OpenRouter backup · <model>"). A wrong Gemini key is reported as an error and is *not* hidden by the backup, so you can fix it.
+
 ## Updating
 Change the files, drag the folder to Netlify again, and bump `CACHE` in `sw.js` (e.g. `fueltrack-v2`) so phones pick up the new version.
