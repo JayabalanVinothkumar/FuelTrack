@@ -1,0 +1,3 @@
+# Never commit API keys
+fueltrack-keys*.txt
+*keys*.txt

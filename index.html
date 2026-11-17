@@ -116,6 +116,7 @@ svg text{fill:var(--mut);font-size:10px}
 <input type="file" id="camInput" accept="image/*" capture="environment" class="hidden">
 <input type="file" id="libInput" accept="image/*" class="hidden">
 <input type="file" id="importInput" accept="application/json" class="hidden">
+<input type="file" id="keysInput" accept=".txt,.json,text/plain,application/json" class="hidden">
 
 <script>
 "use strict";
@@ -177,10 +178,12 @@ const FOODS_RAW = [
 ["Tomato rice",165,3,27,5,"1 cup",200,"South Indian","thakkali sadam"],
 ["Coconut rice",200,3,28,8.5,"1 cup",200,"South Indian","thengai sadam"],
 ["Ghee rice",210,3,30,8.5,"1 cup",200,"South Indian","nei sadam"],
-["Chicken biryani (Dindigul/Ambur)",180,9,21,6.5,"1 plate",350,"South Indian","biriyani seeraga samba"],
-["Mutton biryani",200,9,21,9,"1 plate",350,"South Indian","biriyani"],
-["Egg biryani",175,6.5,23,6.5,"1 plate",350,"South Indian","muttai biriyani"],
-["Kuska (plain biryani)",170,3.5,25,6.5,"1 plate",300,"South Indian","biriyani"],
+["Chicken biryani (Dindigul/Ambur)",180,9,21,6.5,"1 plate",350,"South Indian","biriyani briyani briani biriani kozhi seeraga samba"],
+["Chicken biryani, restaurant (with raita)",195,9,22,8,"1 plate",400,"South Indian","biriyani briyani briani biriani"],
+["Mutton biryani",200,9,21,9,"1 plate",350,"South Indian","biriyani briyani briani biriani aattu kari goat lamb"],
+["Mutton biryani, restaurant (with raita)",215,9,21,10.5,"1 plate",400,"South Indian","biriyani briyani briani biriani goat lamb"],
+["Egg biryani",175,6.5,23,6.5,"1 plate",350,"South Indian","muttai biriyani briyani"],
+["Kuska (plain biryani)",170,3.5,25,6.5,"1 plate",300,"South Indian","biriyani briyani"],
 // kuzhambu, curries
 ["Sambar",65,3.2,9,1.8,"1 cup",240,"South Indian","kuzhambu"],
 ["Rasam",30,1,5,0.7,"1 cup",240,"South Indian","saathamudhu milagu"],
@@ -198,7 +201,8 @@ const FOODS_RAW = [
 ["Meen kuzhambu",110,10,5,5.5,"1 cup",200,"South Indian","fish curry kulambu"],
 ["Meen varuval",220,22,6,12,"1 piece",80,"South Indian","fish fry"],
 ["Chettinad chicken",170,15,5,10,"1 cup",200,"South Indian","kozhi curry"],
-["Chicken 65",260,20,10,15,"1 portion",150,"South Indian","fried chicken"],
+["Chicken 65",260,20,10,15,"1 portion",150,"South Indian","chicken65 fried chicken kozhi"],
+["Chicken 65, boneless (restaurant)",290,21,12,18,"1 plate",200,"South Indian","chicken65 fried chicken"],
 ["Pepper chicken",190,20,5,10,"1 portion",150,"South Indian","milagu kozhi"],
 ["Mutton kuzhambu",190,15,5,12,"1 cup",200,"South Indian","kari kulambu curry"],
 ["Mutton chukka",240,22,5,15,"1 portion",150,"South Indian","sukka varuval"],
@@ -257,7 +261,12 @@ const FOODS_RAW = [
 ["Broccoli",34,2.8,7,0.4,"1 cup",91,"Vegetables"],["Carrot",41,0.9,10,0.2,"1 medium",61,"Vegetables"],["Cucumber",15,0.7,3.6,0.1,"1 cup",104,"Vegetables"],
 ["Tomato",18,0.9,3.9,0.2,"1 medium",123,"Vegetables"],["Spinach",23,2.9,3.6,0.4,"1 cup",30,"Vegetables"],["Potato, boiled",87,1.9,20,0.1,"1 medium",173,"Vegetables"],
 ["Sweet potato, baked",90,2,21,0.2,"1 medium",114,"Vegetables"],["Onion",40,1.1,9.3,0.1,"1 medium",110,"Vegetables"],["Bell pepper",31,1,6,0.3,"1 medium",119,"Vegetables"],
-["Green salad, mixed",17,1.2,3.3,0.2,"1 bowl",85,"Vegetables"],["Cauliflower",25,1.9,5,0.3,"1 cup",107,"Vegetables"],["Green peas",81,5.4,14,0.4,"1/2 cup",80,"Vegetables"],
+["Green salad, mixed",17,1.2,3.3,0.2,"1 bowl",85,"Vegetables","salad no dressing"],
+["Green salad + 3 tbsp vinaigrette (oil & vinegar)",115,1,4.1,11,"1 bowl",195,"Vegetables","salad dressing olive oil balsamic"],
+["Green salad + 3 tbsp creamy dressing",113,1.2,3.9,10.4,"1 bowl",195,"Vegetables","salad dressing ranch caesar joghurt mayo"],
+["Green salad + 3 tbsp yogurt dressing",45,1.6,3.7,2.7,"1 bowl",195,"Vegetables","salad dressing curd light"],
+["Salad dressing, vinaigrette",450,0,4,48,"1 tbsp",15,"Fats & Nuts","dressing oil vinegar"],
+["Salad dressing, creamy",430,1.3,6,44,"1 tbsp",15,"Fats & Nuts","dressing ranch caesar"],["Cauliflower",25,1.9,5,0.3,"1 cup",107,"Vegetables"],["Green peas",81,5.4,14,0.4,"1/2 cup",80,"Vegetables"],
 ["Mushrooms",22,3.1,3.3,0.3,"1 cup",70,"Vegetables"],["Corn, sweet",86,3.3,19,1.4,"1 ear",90,"Vegetables"],["Okra (bhindi)",33,1.9,7.5,0.2,"1 cup",100,"Vegetables"],
 ["French fries",312,3.4,41,15,"medium portion",117,"Vegetables"],
 // Grains & bread
@@ -274,8 +283,8 @@ const FOODS_RAW = [
 ["Poha",158,3,27,4,"1 cup",160,"Indian"],
 ["Dal (lentil curry)",116,6.8,15,3.2,"1 cup",200,"Indian"],["Dal makhani",150,6,14,8,"1 cup",240,"Indian"],["Rajma curry",130,6,16,4.5,"1 cup",240,"Indian"],
 ["Chana masala",164,7,22,5.5,"1 cup",240,"Indian"],["Paneer butter masala",230,8.5,8,18,"1 cup",240,"Indian"],["Palak paneer",150,7,6,11,"1 cup",240,"Indian"],
-["Chicken curry",150,14,5,8.5,"1 cup",240,"Indian"],["Butter chicken",190,13,7,12,"1 cup",240,"Indian"],["Chicken biryani",175,8,22,6,"1 plate",300,"Indian"],
-["Veg biryani",150,3.5,24,4.5,"1 plate",300,"Indian"],
+["Chicken curry",150,14,5,8.5,"1 cup",240,"Indian"],["Butter chicken",190,13,7,12,"1 cup",240,"Indian"],["Chicken biryani (Hyderabadi)",175,8,22,6,"1 plate",300,"Indian","biriyani briyani briani dum"],
+["Veg biryani",150,3.5,24,4.5,"1 plate",300,"Indian","biriyani briyani vegetable"],
 ["Aloo gobi",95,2.2,11,5,"1 cup",200,"Indian"],["Samosa",262,4.5,32,13,"1 samosa",100,"Indian"],
 ["Pakora / Bhaji",300,7,28,18,"5 pieces",80,"Indian"],["Paneer",265,18,3.6,20,"100 g",100,"Indian"],["Gulab jamun",323,5,50,12,"1 piece",40,"Indian"],
 ["Masala chai (with milk & sugar)",55,1.8,8,1.8,"1 cup",200,"Indian"],["Lassi, sweet",90,3,14,2.5,"1 glass",250,"Indian"],
@@ -620,6 +629,27 @@ function migrateFoodIds(){ const byName={}; FOODS.forEach(f=>byName[f.name]=f.id
   Object.values(S.days).forEach(d=>d.food.forEach(e=>{ if(e.foodId&&/^d\d+$/.test(e.foodId)){ if(byName[e.name]) e.foodId=byName[e.name]; else delete e.foodId; } }));
   S.saved.forEach(m=>m.items.forEach(e=>{ if(e.foodId&&/^d\d+$/.test(e.foodId)){ if(byName[e.name]) e.foodId=byName[e.name]; else delete e.foodId; } }));
   S.recent=S.recent.filter(id=>!/^d\d+$/.test(id)); }
+const KEY_FIELDS={provider:"provider",gemini_key:"geminiKey",gemini_model:"geminiModel",claude_key:"apiKey",claude_model:"model",anthropic_key:"apiKey",openrouter_key:"openrouterKey",openrouter_model:"openrouterModel"};
+function applyKeysText(txt){
+  let pairs={};
+  try{ const j=JSON.parse(txt); const flat=(o,pre="")=>Object.entries(o).forEach(([k,v])=>typeof v==="object"&&v?flat(v,pre+k+"_"):pairs[(pre+k).toLowerCase()]=String(v)); flat(j); }
+  catch{ txt.split(/\r?\n/).forEach(l=>{ l=l.trim(); if(!l||l.startsWith("#")) return; const m=l.match(/^([A-Za-z_]+)\s*[=:]\s*(.*)$/); if(m) pairs[m[1].toLowerCase()]=m[2].trim().replace(/^["']|["']$/g,""); }); }
+  pairs.gemini_key??=pairs.gemini_apikey; pairs.claude_key??=pairs.claude_apikey; pairs.openrouter_key??=pairs.openrouter_apikey;
+  const done=[];
+  for(const [k,field] of Object.entries(KEY_FIELDS)){ let v=pairs[k]; if(v==null) continue; v=v.trim();
+    if(!v || /^paste|^your|^x+$|placeholder/i.test(v)) continue;
+    if(field==="provider"){ v=v.toLowerCase(); v=v==="claude"?"anthropic":v; if(!["gemini","anthropic"].includes(v)) continue; }
+    if(/Key$/.test(field)) v=v.replace(/\s+/g,"");
+    S.settings[field]=v; done.push(k); }
+  normalizeKeys(); if(pairs.provider&&/gemini|claude|anthropic/i.test(pairs.provider)) S.settings.provider=/gemini/i.test(pairs.provider)?"gemini":"anthropic";
+  save(); return done; }
+function mask(k){ return k?k.slice(0,4)+"…"+k.slice(-4):"not set"; }
+function loadKeysFile(){ $("#keysInput").click(); }
+function pasteKeys(){ openSheet(`<h3>Paste keys <button class="btn ghost" onclick="closeSheet()">Cancel</button></h3>
+  <p class="mut sm" style="margin-top:0">Paste the whole content of your fueltrack-keys.txt (or keep it in a private note and copy all of it).</p>
+  <textarea id="kt" rows="9" placeholder="gemini_key = AIza..."></textarea>
+  <button class="btn blk" style="margin-top:10px" id="ok">Apply keys</button>`, b=>{
+  b.querySelector("#ok").onclick=()=>{ const d=applyKeysText(b.querySelector("#kt").value); closeSheet(); render(); toast(d.length?"✅ Updated: "+d.join(", "):"No keys found (placeholders are ignored)"); }; }); }
 function keyType(k){ k=(k||"").trim(); return k.startsWith("AIza")?"gemini":k.startsWith("sk-ant")?"anthropic":k.startsWith("sk-or-")?"openrouter":null; }
 function normalizeKeys(){ const st=S.settings;
   if(keyType(st.apiKey)==="gemini"){ st.geminiKey=st.apiKey.trim(); st.apiKey=""; }
@@ -832,6 +862,10 @@ function renderMore(){
   return `<div class="card"><h2>Goals</h2><div class="sm">${r0(g.kcal)} kcal · P ${g.pPct}% / C ${g.cPct}% / F ${g.fPct}% · ${g.water} glasses water</div><button class="btn sec blk" style="margin-top:10px" onclick="openGoals()">Edit goals</button></div>
   <div class="card"><h2>My foods <small>${S.custom.length}</small></h2><div class="list">${S.custom.map(f=>`<div class="li" onclick="openCustomFood(null,'${f.id}')"><div class="grow">${esc(f.name)}<div class="mut sm">${r0(f.kcal)} kcal / 100 g</div></div>›</div>`).join("")||`<div class="empty">Add foods from nutrition labels.</div>`}</div><button class="btn sec blk" style="margin-top:8px" onclick="openCustomFood()">＋ New food</button></div>
   <div class="card"><h2>Saved meals <small>${S.saved.length}</small></h2><button class="btn sec blk" onclick="openSavedMeals(guessMeal())">View saved meals</button></div>
+  <div class="card"><h2>🔑 Keys file</h2>
+    <p class="mut sm" style="margin-top:0">Keep fueltrack-keys.txt in Files / iCloud Drive (never on GitHub). Edit it when a key changes, then load it here.</p>
+    <div class="grid2"><button class="btn" onclick="loadKeysFile()">📄 Load keys file</button><button class="btn sec" onclick="pasteKeys()">📋 Paste keys</button></div>
+    <div class="mut sm" style="margin-top:8px">Gemini: ${esc(mask(S.settings.geminiKey))} · Claude: ${esc(mask(S.settings.apiKey))} · OpenRouter: ${esc(mask(S.settings.openrouterKey))} · Using: ${S.settings.provider==="gemini"?"Gemini":"Claude"}</div></div>
   <div class="card"><h2>AI photo recognition (optional)</h2>
     <p class="mut sm" style="margin-top:0">The app works fully offline. With an API key, the Snap button identifies food and estimates calories automatically when you have internet. The key stays on this phone and photos go straight to the provider.</p>
     <div class="seg" id="prov"><button data-p="gemini" class="${S.settings.provider==='gemini'?'on':''}" onclick="S.settings.provider='gemini';save();render()">Google Gemini</button><button data-p="anthropic" class="${S.settings.provider==='anthropic'?'on':''}" onclick="S.settings.provider='anthropic';save();render()">Claude</button></div>
@@ -852,7 +886,7 @@ function renderMore(){
     <div class="grid2" style="margin-top:10px"><button class="btn sec" onclick="saveOR();toast('Backup saved')">Save</button><button class="btn sec" onclick="testOR()">Test backup</button></div></div>
   <div class="card"><h2>Backup</h2><p class="mut sm" style="margin-top:0">Your data lives only on this phone. Export a backup now and then.</p>
     <div class="grid2"><button class="btn sec" onclick="exportData()">⬇️ Export</button><button class="btn sec" onclick="$('#importInput').click()">⬆️ Import</button></div></div>
-  <div class="card"><h2>About</h2><div class="mut sm">FuelTrack v1.5 · ${FOODS.length} built-in foods · Calorie estimates are approximate; not medical advice.</div>
+  <div class="card"><h2>About</h2><div class="mut sm">FuelTrack v1.6 · ${FOODS.length} built-in foods · Calorie estimates are approximate; not medical advice.</div>
     <button class="btn danger blk" onclick="resetAll()">Erase all data</button></div>`;
 }
 async function exportData(){
@@ -861,6 +895,8 @@ async function exportData(){
   const file=new File([blob],name,{type:"application/json"});
   if(navigator.canShare&&navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file],title:name}); return; }catch(e){ if(e.name==="AbortError") return; } }
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; a.click(); }
+$("#keysInput").onchange=async e=>{ const f=e.target.files[0]; e.target.value=""; if(!f) return;
+  try{ const d=applyKeysText(await f.text()); render(); toast(d.length?"✅ Updated: "+d.join(", "):"No keys found (placeholders are ignored)"); }catch(err){ toast("Could not read keys file"); } };
 $("#importInput").onchange=async e=>{ const f=e.target.files[0]; e.target.value=""; if(!f) return;
   try{ const j=JSON.parse(await f.text()); if(!j.state) throw 0; S={...structuredClone(DEFAULT_STATE),...j.state}; for(const [k,v] of Object.entries(j.photos||{})) await DB.set(k,v,"photos"); save(); render(); toast("Backup restored"); }catch{ toast("Not a valid backup file"); } };
 function resetAll(){ openSheet(`<h3>Erase everything?</h3><p class="mut">This deletes your diary, foods, weights and photos from this phone.</p><div class="grid2"><button class="btn sec" onclick="closeSheet()">Cancel</button><button class="btn" style="background:var(--bad)" id="y">Erase</button></div>`, b=>{
