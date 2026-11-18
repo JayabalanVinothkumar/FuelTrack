@@ -326,7 +326,10 @@ const FOODS_RAW = [
 ["Apfelschorle",24,0,5.5,0,"1 glass",300,"Drinks"],["Smoothie, fruit",55,0.8,13,0.3,"1 bottle",250,"Drinks"],["Protein shake (milk)",80,9,6,2,"1 shake",330,"Drinks"],
 ];
 const slug=t=>t.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
-const FOODS = FOODS_RAW.map(r=>({id:"f-"+slug(r[0]),name:r[0],kcal:r[1],p:r[2],c:r[3],f:r[4],sLabel:r[5],sG:r[6],cat:r[7],tags:r[8]||""}));
+const LIQ_RE=/\b(tea|coffee|kaapi|milk|juice|lassi|buttermilk|koozh|shake|smoothie|cola|beer|wine|apfelschorle|water|latte|cappuccino|espresso|chai)\b/i;
+const NOT_LIQ_RE=/chocolate|rice|paneer|powder|curd|yogurt|cheese|quark|skyr|ice cream|butter\b/i;
+function liquidName(n,cat){ return cat==="Drinks" || (LIQ_RE.test(n) && !NOT_LIQ_RE.test(n)); }
+const FOODS = FOODS_RAW.map(r=>({id:"f-"+slug(r[0]),name:r[0],kcal:r[1],p:r[2],c:r[3],f:r[4],sLabel:r[5],sG:r[6],cat:r[7],tags:r[8]||"",unit:liquidName(r[0],r[7])?"ml":"g"}));
 
 /* Exercises: [name, MET] */
 const EXERCISES = [["Walking (moderate)",3.5],["Walking (brisk)",4.3],["Running (8 km/h)",8.3],["Running (10 km/h)",9.8],["Running (12 km/h)",11.5],
@@ -386,8 +389,10 @@ function curWeight(){ const w=[...S.weights].sort((a,b)=>a.d<b.d?-1:1); return w
 function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("on"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("on"),2200); }
 function allFoods(){ return [...S.custom.map(f=>({...f,cat:"My Foods"})), ...FOODS]; }
 function findFood(id){ return allFoods().find(f=>f.id===id); }
+function unitOf(x){ if(!x) return "g"; if(x.unit) return x.unit; const f=x.foodId&&findFood(x.foodId); return f?.unit||(liquidName(x.name||"","")?"ml":"g"); }
+function uLabel(u){ return u==="ml"?"ml":"g"; }
 function entryFrom(food,grams,meal,extra={}){ const k=grams/100;
-  return {id:uid(),meal,name:food.name,foodId:food.id,grams:r1(grams),kcal:r1(food.kcal*k),p:r1(food.p*k),c:r1(food.c*k),f:r1(food.f*k),...extra}; }
+  return {id:uid(),meal,name:food.name,foodId:food.id,unit:food.unit||"g",grams:r1(grams),kcal:r1(food.kcal*k),p:r1(food.p*k),c:r1(food.c*k),f:r1(food.f*k),...extra}; }
 function pushRecent(id){ S.recent=[id,...S.recent.filter(x=>x!==id)].slice(0,25); }
 
 /* ======================= PHOTO HANDLING ======================= */
@@ -477,7 +482,7 @@ function mealCards(compact){
     return `<div class="card meal"><h2>${m} <small>${r0(kc)} kcal</small></h2>
       ${items.map(i=>`<div class="item" onclick="editEntry('${i.id}')">
         ${i.photo?`<img class="thumb" data-pid="${i.photo}" alt="">`:""}
-        <div class="grow"><div class="nm">${esc(i.name)}</div><div class="mut sm">${i.grams?r0(i.grams)+" g · ":""}P ${r0(i.p)} · C ${r0(i.c)} · F ${r0(i.f)}${i.ai?' · <span class="pill">AI</span>':''}</div></div>
+        <div class="grow"><div class="nm">${esc(i.name)}</div><div class="mut sm">${i.grams?r0(i.grams)+" "+uLabel(unitOf(i))+" · ":""}P ${r0(i.p)} · C ${r0(i.c)} · F ${r0(i.f)}${i.ai?' · <span class="pill">AI</span>':''}</div></div>
         <div class="kc">${r0(i.kcal)}</div></div>`).join("") || `<div class="empty">Nothing logged</div>`}
       ${compact?"":`<div class="addrow"><button class="btn sec" onclick="openSearch('${m}')">+ Food</button><button class="btn sec" onclick="startPhoto('${m}')">📷</button><button class="btn sec" onclick="mealMenu('${m}')">⋯</button></div>`}
     </div>`; }).join("");
@@ -504,11 +509,11 @@ function openWater(){ openSheet(`<h3>Water <button class="btn ghost" onclick="cl
 
 /* ======================= FOOD SEARCH / ADD ======================= */
 let searchCat="All";
-function openSearch(meal,photoId){
-  openSheet(`<h3>Add to ${meal} <button class="btn ghost" onclick="closeSheet()">Close</button></h3>
-    <input type="search" id="q" placeholder="Search foods (e.g. dosa, chicken, apple)" autocomplete="off">
+function openSearch(meal,photoId,opts={}){
+  openSheet(`<h3>${opts.pick?esc(opts.title||"Choose food"):"Add to "+meal} <button class="btn ghost" id="sClose">${opts.back?"Back":"Close"}</button></h3>
+    <input type="search" id="q" placeholder="Search foods (e.g. dosa, chicken, apple)" autocomplete="off" value="${esc(opts.q||"")}">
     <div class="chips" id="cats"></div>
-    <div class="grid3" style="margin-bottom:6px">
+    <div class="grid3 ${opts.pick?"hidden":""}" style="margin-bottom:6px">
       <button class="btn sec" onclick="openQuickAdd('${meal}')">⚡ Quick</button>
       <button class="btn sec" onclick="openCustomFood('${meal}')">＋ New food</button>
       <button class="btn sec" onclick="openSavedMeals('${meal}')">⭐ Meals</button>
@@ -521,11 +526,16 @@ function openSearch(meal,photoId){
       let list=allFoods();
       if(searchCat==="Recent") list=S.recent.map(findFood).filter(Boolean);
       else if(searchCat!=="All") list=list.filter(f=>f.cat===searchCat);
-      if(q){ const words=q.split(/\s+/); list=list.filter(f=>{ const toks=(f.name+" "+(f.tags||"")).toLowerCase().split(/[^a-z0-9%.]+/); return words.every(w=>toks.some(t=>t.startsWith(w))); });
-        list.sort((a,b)=>(a.name.toLowerCase().startsWith(q)?0:1)-(b.name.toLowerCase().startsWith(q)?0:1)); }
+      if(q){ const words=q.split(/[^a-z0-9%.]+/).filter(Boolean);
+        const score=f=>{ const toks=(f.name+" "+(f.tags||"")).toLowerCase().split(/[^a-z0-9%.]+/); return words.filter(w=>toks.some(t=>t.startsWith(w))).length; };
+        let sc=list.map(f=>[f,score(f)]); let hit=sc.filter(x=>x[1]===words.length);
+        if(!hit.length && words.length>1) hit=sc.filter(x=>x[1]>0); // close matches when the exact phrase isn't found
+        hit.sort((a,b)=>b[1]-a[1] || (a[0].name.toLowerCase().startsWith(q)?0:1)-(b[0].name.toLowerCase().startsWith(q)?0:1)); list=hit.map(x=>x[0]); }
       else if(searchCat==="All"){ const rec=S.recent.map(findFood).filter(Boolean); list=[...rec,...list.filter(f=>!S.recent.includes(f.id))]; }
-      b.querySelector("#res").innerHTML=list.slice(0,80).map(f=>`<div class="li" data-id="${f.id}"><div class="grow"><div class="nm">${esc(f.name)}</div><div class="mut sm">${esc(f.sLabel)} (${r0(f.sG)} g) · ${r0(f.kcal*f.sG/100)} kcal</div></div><span style="color:var(--acc);font-size:22px">＋</span></div>`).join("")||`<div class="empty">No match. Use "New food" or "Quick" to add it.</div>`;
-      b.querySelectorAll(".li").forEach(li=>li.onclick=()=>openPortion(li.dataset.id,meal,photoId)); };
+      b.querySelector("#res").innerHTML=list.slice(0,80).map(f=>`<div class="li" data-id="${f.id}"><div class="grow"><div class="nm">${esc(f.name)}</div><div class="mut sm">${esc(f.sLabel)} (${r0(f.sG)} ${uLabel(f.unit)}) · ${r0(f.kcal*f.sG/100)} kcal</div></div><span style="color:var(--acc);font-size:22px">＋</span></div>`).join("")||`<div class="empty">No match. Use "New food" or "Quick" to add it.</div>`;
+      b.querySelectorAll(".li").forEach(li=>li.onclick=()=> opts.pick ? opts.pick(findFood(li.dataset.id)) : openPortion(li.dataset.id,meal,photoId)); };
+    b.querySelector("#sClose").onclick=()=> opts.back ? opts.back() : closeSheet();
+    if(opts.pick) searchCat="All";
     b.querySelector("#q").oninput=draw; draw();
   });
 }
@@ -534,7 +544,7 @@ function openPortion(fid,meal,photoId,editId){
   const ex=editId?day().food.find(i=>i.id===editId):null;
   let mode="serv", qty=ex? r1(ex.grams/f.sG) : 1;
   openSheet(`<h3>${esc(f.name)} <button class="btn ghost" onclick="closeSheet()">Cancel</button></h3>
-    <div class="seg" id="mode"><button data-m="serv" class="on">${esc(f.sLabel)}</button><button data-m="g">grams</button></div>
+    <div class="seg" id="mode"><button data-m="serv" class="on">${esc(f.sLabel)}</button><button data-m="g">${f.unit==="ml"?"ml":"grams"}</button></div>
     <div class="row" style="margin-top:12px"><button class="btn sec" id="minus" style="width:52px">−</button><input type="number" id="qty" inputmode="decimal" step="0.25" value="${qty}" style="text-align:center;font-size:20px"><button class="btn sec" id="plus" style="width:52px">＋</button></div>
     <label class="f">Meal</label><select id="meal">${MEALS.map(m=>`<option ${m===(ex?.meal||meal)?'selected':''}>${m}</option>`).join("")}</select>
     <div class="card" style="background:var(--card2);margin-top:12px"><div class="eq" style="margin:0" id="nut"></div></div>
@@ -570,32 +580,48 @@ function openCustomFood(meal,editId){
   const ex=editId?S.custom.find(f=>f.id===editId):null;
   openSheet(`<h3>${ex?"Edit":"New"} food <button class="btn ghost" onclick="closeSheet()">Cancel</button></h3>
     <p class="mut sm" style="margin-top:0">Copy the values from the nutrition label (per 100 g / 100 ml).</p>
+    <label class="f">Type</label><div class="seg" id="cu"><button data-u="g" class="${(ex?.unit||"g")==="g"?"on":""}">🍽 Food (g)</button><button data-u="ml" class="${ex?.unit==="ml"?"on":""}">🥤 Drink (ml)</button></div>
     <label class="f">Name</label><input type="text" id="n" value="${esc(ex?.name||"")}">
     <div class="grid2"><div><label class="f">kcal / 100 g</label><input type="number" id="k" inputmode="decimal" value="${ex?.kcal??""}"></div><div><label class="f">Protein / 100 g</label><input type="number" id="p" inputmode="decimal" value="${ex?.p??""}"></div>
     <div><label class="f">Carbs / 100 g</label><input type="number" id="c" inputmode="decimal" value="${ex?.c??""}"></div><div><label class="f">Fat / 100 g</label><input type="number" id="f" inputmode="decimal" value="${ex?.f??""}"></div>
-    <div><label class="f">Serving name</label><input type="text" id="sl" value="${esc(ex?.sLabel||"1 serving")}"></div><div><label class="f">Serving size (g)</label><input type="number" id="sg" inputmode="decimal" value="${ex?.sG||100}"></div></div>
+    <div><label class="f">Serving name</label><input type="text" id="sl" value="${esc(ex?.sLabel||"1 serving")}"></div><div><label class="f">Serving size (g / ml)</label><input type="number" id="sg" inputmode="decimal" value="${ex?.sG||100}"></div></div>
     <button class="btn blk" style="margin-top:14px" id="ok">Save food</button>
     ${ex?`<button class="btn danger blk" id="del">Delete food</button>`:""}`, b=>{
+    let cu=ex?.unit||"g"; b.querySelectorAll("#cu button").forEach(x=>x.onclick=()=>{cu=x.dataset.u;b.querySelectorAll("#cu button").forEach(y=>y.classList.toggle("on",y===x));});
     b.querySelector("#ok").onclick=()=>{ const g=id=>b.querySelector(id).value; const name=g("#n").trim(); if(!name){toast("Name required");return;}
-      const f={id:ex?.id||"c"+uid(),name,kcal:+g("#k")||0,p:+g("#p")||0,c:+g("#c")||0,f:+g("#f")||0,sLabel:g("#sl")||"1 serving",sG:+g("#sg")||100};
+      const f={id:ex?.id||"c"+uid(),name,unit:cu,kcal:+g("#k")||0,p:+g("#p")||0,c:+g("#c")||0,f:+g("#f")||0,sLabel:g("#sl")||"1 serving",sG:+g("#sg")||100};
       if(ex) Object.assign(ex,f); else S.custom.unshift(f); save(); toast("Saved");
       if(meal) openPortion(f.id,meal); else { closeSheet(); render(); } };
     if(ex) b.querySelector("#del").onclick=()=>{ S.custom=S.custom.filter(x=>x!==ex); save(); closeSheet(); render(); };
   });
 }
+function perUnit(x){ return x.grams>0?{kcal:x.kcal/x.grams,p:x.p/x.grams,c:x.c/x.grams,f:x.f/x.grams}:null; }
 function editEntry(id){ const e=day().food.find(i=>i.id===id); if(!e) return;
-  openSheet(`<h3>${esc(e.name)} <button class="btn ghost" onclick="closeSheet()">Close</button></h3>
+  const per=perUnit(e); let u=unitOf(e);
+  openSheet(`<h3>Edit entry <button class="btn ghost" onclick="closeSheet()">Close</button></h3>
     ${e.photo?`<img class="photo-prev" data-pid="${e.photo}" alt="">`:""}
-    <div class="card" style="background:var(--card2);margin-top:10px"><div class="eq" style="margin:0"><div><b>${r0(e.kcal)}</b>kcal</div><div><b>${r1(e.p)}</b>Protein</div><div><b>${r1(e.c)}</b>Carbs</div><div><b>${r1(e.f)}</b>Fat</div></div></div>
-    ${e.grams?`<div class="mut sm">${r0(e.grams)} g · ${e.meal}</div>`:`<div class="mut sm">${e.meal}</div>`}
-    <div class="grid2" style="margin-top:12px">
-      ${e.foodId&&findFood(e.foodId)?`<button class="btn sec" id="ed">Edit amount</button>`:`<button class="btn sec" id="eq">Edit values</button>`}
-      <button class="btn sec" id="cp">Copy to today</button>
-      ${e.foodId&&!findFood(e.foodId)?"":""}
-    </div>
-    <button class="btn danger blk" id="del" style="margin-top:6px">Delete entry</button>`, b=>{
-    b.querySelector("#ed")&&(b.querySelector("#ed").onclick=()=>openPortion(e.foodId,e.meal,null,e.id));
-    b.querySelector("#eq")&&(b.querySelector("#eq").onclick=()=>{ day().food=day().food.filter(x=>x!==e); save(); openQuickAdd(e.meal,e.photo,e); });
+    <label class="f">Name</label><input type="text" id="en" value="${esc(e.name)}">
+    ${per?`<label class="f">Amount</label>
+    <div class="row"><button class="btn sec" id="minus" style="width:52px">−</button><input type="number" id="amt" inputmode="decimal" value="${r0(e.grams)}" style="text-align:center;font-size:20px"><button class="btn sec" id="plus" style="width:52px">＋</button>
+      <div class="seg" id="un" style="width:110px"><button data-u="g" class="${u==="g"?"on":""}">g</button><button data-u="ml" class="${u==="ml"?"on":""}">ml</button></div></div>`:""}
+    <label class="f">Meal</label><select id="em">${MEALS.map(m=>`<option ${m===e.meal?'selected':''}>${m}</option>`).join("")}</select>
+    <div class="card" style="background:var(--card2);margin-top:12px"><div class="eq" style="margin:0" id="nut"></div></div>
+    <button class="btn blk" id="sv">Save</button>
+    <div class="grid2" style="margin-top:8px"><button class="btn sec" id="chg">🔄 Change food</button><button class="btn sec" id="eq">✏️ Edit kcal/macros</button>
+      <button class="btn sec" id="cp">Copy to today</button><button class="btn danger" id="del">Delete</button></div>`, b=>{
+    const amt=()=>parseFloat(b.querySelector("#amt")?.value)||0;
+    const vals=()=>per?{kcal:per.kcal*amt(),p:per.p*amt(),c:per.c*amt(),f:per.f*amt()}:e;
+    const upd=()=>{ const v=vals(); b.querySelector("#nut").innerHTML=`<div><b>${r0(v.kcal)}</b>kcal</div><div><b>${r1(v.p)}</b>Protein</div><div><b>${r1(v.c)}</b>Carbs</div><div><b>${r1(v.f)}</b>Fat</div>`; };
+    if(per){ const ai=b.querySelector("#amt"); ai.oninput=upd;
+      b.querySelector("#minus").onclick=()=>{ ai.value=Math.max(0,amt()-10); upd(); }; b.querySelector("#plus").onclick=()=>{ ai.value=amt()+10; upd(); };
+      b.querySelectorAll("#un button").forEach(x=>x.onclick=()=>{ u=x.dataset.u; b.querySelectorAll("#un button").forEach(y=>y.classList.toggle("on",y===x)); }); }
+    upd();
+    b.querySelector("#sv").onclick=()=>{ if(per&&amt()<=0){toast("Enter an amount");return;} const v=vals();
+      Object.assign(e,{name:b.querySelector("#en").value.trim()||e.name,meal:b.querySelector("#em").value,kcal:r1(v.kcal),p:r1(v.p),c:r1(v.c),f:r1(v.f)}, per?{grams:r1(amt()),unit:u}:{});
+      save(); closeSheet(); render(); toast("Updated"); };
+    b.querySelector("#chg").onclick=()=>openSearch(e.meal,null,{title:"Replace with…",q:e.name.replace(/\(.*?\)/g,""),back:()=>editEntry(e.id),pick:f=>{
+      const a=e.grams>0?e.grams:f.sG; Object.assign(e, entryFrom(f,a,e.meal,{id:e.id,photo:e.photo,ai:e.ai})); pushRecent(f.id); save(); render(); editEntry(e.id); toast("Changed to "+f.name); }});
+    b.querySelector("#eq").onclick=()=>{ day().food=day().food.filter(x=>x!==e); save(); openQuickAdd(e.meal,e.photo,e); };
     b.querySelector("#cp").onclick=()=>{ const t=iso(new Date()); const c={...e,id:uid()}; (S.days[t]||day(t)).food.push(c); save(); closeSheet(); render(); toast("Copied to today"); };
     b.querySelector("#del").onclick=()=>{ day().food=day().food.filter(x=>x!==e); save(); closeSheet(); render(); toast("Deleted"); };
   });
@@ -741,29 +767,65 @@ function photoReview(pid,aiData){
     if(canAI) runAI(pid,aiData,meal(),b);
   });
 }
+let RV=null; // current AI review
+function itemFromFood(f,amount){ return {name:f.name,foodId:f.id,unit:f.unit||"g",amount:amount||f.sG,per:{kcal:f.kcal/100,p:f.p/100,c:f.c/100,f:f.f/100},on:true}; }
+function itemVals(i){ const a=i.amount||0; return {kcal:i.per.kcal*a,p:i.per.p*a,c:i.per.c*a,f:i.per.f*a}; }
 async function runAI(pid,dataUrl,meal,b){
   const box=b.querySelector("#aiBox"); box.innerHTML=`<div class="card" style="background:var(--card2)"><span class="spin"></span> Analysing your plate…</div>`;
   try{
-    const prompt=`You are a nutrition estimator. Identify each distinct food or drink in this photo and estimate the portion in grams and its nutrition. Consider plate size and typical serving sizes; This user mostly eats Tamil Nadu / South Indian food (idli, dosa, sambar, rasam, kuzhambu, poriyal, curd rice, biryani, parotta) and also German food; use Tamil dish names where they fit and account for ghee and oil. Reply ONLY with JSON: {"items":[{"name":string,"grams":number,"kcal":number,"protein":number,"carbs":number,"fat":number}],"confidence":"low"|"medium"|"high","note":string}`;
+    const prompt=`You are a nutrition estimator. Identify each distinct food or drink in this photo and estimate the portion and its nutrition. Consider plate size and typical serving sizes. This user mostly eats Tamil Nadu / South Indian food (idli, dosa, sambar, rasam, kuzhambu, poriyal, curd rice, biryani, parotta) and also German food; use Tamil dish names where they fit and account for ghee and oil. Use "ml" as unit for drinks (tea, coffee, milk, juice, buttermilk, soft drinks, beer) and "g" for everything else. Reply ONLY with JSON: {"items":[{"name":string,"amount":number,"unit":"g"|"ml","kcal":number,"protein":number,"carbs":number,"fat":number}],"confidence":"low"|"medium"|"high","note":string}`;
     const ai=await callAI(dataUrl.split(",")[1],prompt); const txt=ai.text; const m=txt.match(/\{[\s\S]*\}/); if(!m) throw new Error("Unexpected AI reply"); const out=JSON.parse(m[0]);
-    const items=(out.items||[]).map(i=>({name:i.name,grams:+i.grams||0,kcal:+i.kcal||0,p:+i.protein||0,c:+i.carbs||0,f:+i.fat||0,on:true,scale:1}));
+    const items=(out.items||[]).map(i=>{ let a=+(i.amount??i.grams)||0; const kc=+i.kcal||0, pr=+i.protein||0, cb=+i.carbs||0, ft=+i.fat||0;
+      const unit=(String(i.unit).toLowerCase()==="ml"||liquidName(i.name||"",""))?"ml":"g"; const base=a>0?a:100; if(!a) a=100;
+      return {name:i.name||"Item",unit,amount:r0(a),per:{kcal:kc/base,p:pr/base,c:cb/base,f:ft/base},on:true}; });
     if(!items.length) throw new Error("No food recognised");
-    const draw=()=>{ const tot=items.filter(i=>i.on).reduce((a,i)=>a+i.kcal*i.scale,0);
-      box.innerHTML=`<div class="card" style="background:var(--card2)"><h2>AI estimate <small>${esc(out.confidence||"")} confidence</small></h2><div class="mut sm" style="margin:-6px 0 4px">via ${esc(ai.via)}${ai.fallbackReason?" — "+esc(primaryName())+" was unavailable":""}</div>
-        ${items.map((i,k)=>`<div class="item" style="display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)">
-          <input type="checkbox" data-k="${k}" ${i.on?"checked":""} style="width:22px;height:22px">
-          <div class="grow"><div class="nm">${esc(i.name)}</div><div class="mut sm">${r0(i.grams*i.scale)} g · P ${r0(i.p*i.scale)} C ${r0(i.c*i.scale)} F ${r0(i.f*i.scale)}</div></div>
-          <select data-s="${k}" style="width:76px;padding:6px">${[0.5,0.75,1,1.25,1.5,2].map(s=>`<option value="${s}" ${s===i.scale?'selected':''}>×${s}</option>`).join("")}</select>
-          <div class="kc" style="width:44px;text-align:right">${r0(i.kcal*i.scale)}</div></div>`).join("")}
-        ${out.note?`<div class="mut sm" style="margin-top:6px">${esc(out.note)}</div>`:""}
-        <div class="row" style="margin-top:10px"><div class="grow big">${r0(tot)} <span class="mut sm">kcal</span></div><button class="btn" id="aiAdd">Add to ${esc(meal)}</button></div></div>`;
-      box.querySelectorAll("[data-k]").forEach(x=>x.onchange=()=>{items[x.dataset.k].on=x.checked;draw();});
-      box.querySelectorAll("[data-s]").forEach(x=>x.onchange=()=>{items[x.dataset.s].scale=+x.value;draw();});
-      box.querySelector("#aiAdd").onclick=()=>{ const ml=b.querySelector("#pm").value; let first=true;
-        items.filter(i=>i.on).forEach(i=>{ day().food.push({id:uid(),meal:ml,name:i.name,grams:r0(i.grams*i.scale),kcal:r1(i.kcal*i.scale),p:r1(i.p*i.scale),c:r1(i.c*i.scale),f:r1(i.f*i.scale),ai:true,photo:first?pid:undefined}); first=false; });
-        save(); closeSheet(); render(); toast("Meal logged"); };
-    }; draw();
+    RV={pid,meal:b.querySelector("#pm").value,items,conf:out.confidence||"",note:out.note||"",via:ai.via,fb:ai.fallbackReason};
+    openReview();
   }catch(err){ box.innerHTML=`<div class="card" style="background:var(--card2)"><div class="sm" style="color:var(--warn)">AI estimate failed: ${esc(err.message)}</div><div class="mut sm">Pick the foods manually below.</div></div>`; }
+}
+function openReview(){
+  const R=RV; if(!R) return;
+  openSheet(`<h3>Check your meal <button class="btn ghost" onclick="closeSheet()">Cancel</button></h3>
+    <div class="row"><img class="thumb" data-pid="${R.pid}" alt="" style="width:64px;height:64px">
+      <div class="grow"><div class="sm">${esc(R.conf)} confidence · via ${esc(R.via)}</div>${R.fb?`<div class="mut sm">${esc(primaryName())} was unavailable</div>`:""}${R.note?`<div class="mut sm">${esc(R.note)}</div>`:""}</div></div>
+    <p class="mut sm">Tap a name to rename it, 🔄 to swap it for a food from the list, and change the amount if the portion is off.</p>
+    <div id="rvItems">${R.items.map((i,k)=>`<div class="card" style="background:var(--card2);padding:10px;margin-bottom:8px;${i.on?"":"opacity:.45"}">
+      <div class="row"><input type="checkbox" data-on="${k}" ${i.on?"checked":""} style="width:22px;height:22px;flex:none">
+        <input type="text" data-name="${k}" value="${esc(i.name)}" style="padding:8px 10px">
+        <button class="btn sec" data-swap="${k}" style="padding:8px 10px;flex:none" aria-label="Swap food">🔄</button>
+        <button class="btn danger" data-del="${k}" style="padding:8px;flex:none" aria-label="Remove">✕</button></div>
+      <div class="row" style="margin-top:8px"><button class="btn sec" data-minus="${k}" style="width:40px;padding:8px 0;flex:none">−</button>
+        <input type="number" inputmode="decimal" data-amt="${k}" value="${r0(i.amount)}" style="width:80px;text-align:center;padding:8px">
+        <button class="btn sec" data-plus="${k}" style="width:40px;padding:8px 0;flex:none">＋</button>
+        <div class="seg" style="width:90px;flex:none"><button data-unit="${k}" data-u="g" class="${i.unit==="g"?"on":""}" style="padding:6px">g</button><button data-unit="${k}" data-u="ml" class="${i.unit==="ml"?"on":""}" style="padding:6px">ml</button></div>
+        <div class="grow kc" data-kc="${k}" style="text-align:right;white-space:nowrap"></div></div>
+      <div class="mut sm" style="margin-top:6px;display:flex;justify-content:space-between"><span data-mac="${k}"></span>${i.foodId?`<span>✓ from food list</span>`:""}</div>
+    </div>`).join("")}</div>
+    <button class="btn sec blk" id="rvAdd">＋ Add missing item</button>
+    <label class="f">Meal</label><select id="rvMeal">${MEALS.map(m=>`<option ${m===R.meal?'selected':''}>${m}</option>`).join("")}</select>
+    <div class="row" style="margin-top:12px"><div class="grow big" id="rvTot"></div><button class="btn" id="rvOk">Add to diary</button></div>`, b=>{
+    const step=i=>i.unit==="ml"?25:10;
+    const upd=()=>{ R.items.forEach((i,k)=>{ const v=itemVals(i); const kc=b.querySelector(`[data-kc="${k}"]`); if(!kc) return;
+        kc.textContent=r0(v.kcal)+" kcal"; b.querySelector(`[data-mac="${k}"]`).textContent=`P ${r0(v.p)} · C ${r0(v.c)} · F ${r0(v.f)}`; });
+      b.querySelector("#rvTot").innerHTML=`${r0(R.items.filter(i=>i.on).reduce((a,i)=>a+itemVals(i).kcal,0))} <span class="mut sm">kcal</span>`; };
+    b.querySelector("#rvMeal").onchange=e=>R.meal=e.target.value;
+    b.querySelectorAll("[data-on]").forEach(x=>x.onchange=()=>{ R.items[x.dataset.on].on=x.checked; x.closest(".card").style.opacity=x.checked?1:.45; upd(); });
+    b.querySelectorAll("[data-name]").forEach(x=>x.oninput=()=>{ R.items[x.dataset.name].name=x.value; });
+    b.querySelectorAll("[data-amt]").forEach(x=>x.oninput=()=>{ R.items[x.dataset.amt].amount=Math.max(0,parseFloat(x.value)||0); upd(); });
+    b.querySelectorAll("[data-minus]").forEach(x=>x.onclick=()=>{ const i=R.items[x.dataset.minus]; i.amount=Math.max(0,r0(i.amount-step(i))); b.querySelector(`[data-amt="${x.dataset.minus}"]`).value=i.amount; upd(); });
+    b.querySelectorAll("[data-plus]").forEach(x=>x.onclick=()=>{ const i=R.items[x.dataset.plus]; i.amount=r0(i.amount+step(i)); b.querySelector(`[data-amt="${x.dataset.plus}"]`).value=i.amount; upd(); });
+    b.querySelectorAll("[data-unit]").forEach(x=>x.onclick=()=>{ R.items[x.dataset.unit].unit=x.dataset.u; x.parentNode.querySelectorAll("button").forEach(y=>y.classList.toggle("on",y===x)); });
+    b.querySelectorAll("[data-del]").forEach(x=>x.onclick=()=>{ R.items.splice(+x.dataset.del,1); openReview(); });
+    b.querySelectorAll("[data-swap]").forEach(x=>x.onclick=()=>{ const k=+x.dataset.swap, old=R.items[k];
+      openSearch(R.meal,null,{title:"Replace “"+old.name+"” with…",q:old.name.replace(/\(.*?\)/g,""),back:openReview,pick:f=>{
+        const amt=old.amount>0?old.amount:f.sG; R.items[k]=itemFromFood(f,amt); pushRecent(f.id); openReview(); }}); });
+    b.querySelector("#rvAdd").onclick=()=>openSearch(R.meal,null,{title:"Add item",back:openReview,pick:f=>{ R.items.push(itemFromFood(f)); pushRecent(f.id); openReview(); }});
+    b.querySelector("#rvOk").onclick=()=>{ const sel=R.items.filter(i=>i.on&&i.amount>0); if(!sel.length){toast("Nothing selected");return;}
+      let first=true; sel.forEach(i=>{ const v=itemVals(i);
+        day().food.push({id:uid(),meal:R.meal,name:i.name.trim()||"Item",grams:r1(i.amount),unit:i.unit,kcal:r1(v.kcal),p:r1(v.p),c:r1(v.c),f:r1(v.f),ai:true,...(i.foodId?{foodId:i.foodId}:{}),...(first?{photo:R.pid}:{})}); first=false; });
+      RV=null; save(); closeSheet(); render(); toast("Meal logged"); };
+    upd();
+  });
 }
 
 /* ======================= EXERCISE ======================= */
@@ -886,7 +948,7 @@ function renderMore(){
     <div class="grid2" style="margin-top:10px"><button class="btn sec" onclick="saveOR();toast('Backup saved')">Save</button><button class="btn sec" onclick="testOR()">Test backup</button></div></div>
   <div class="card"><h2>Backup</h2><p class="mut sm" style="margin-top:0">Your data lives only on this phone. Export a backup now and then.</p>
     <div class="grid2"><button class="btn sec" onclick="exportData()">⬇️ Export</button><button class="btn sec" onclick="$('#importInput').click()">⬆️ Import</button></div></div>
-  <div class="card"><h2>About</h2><div class="mut sm">FuelTrack v1.6 · ${FOODS.length} built-in foods · Calorie estimates are approximate; not medical advice.</div>
+  <div class="card"><h2>About</h2><div class="mut sm">FuelTrack v1.7 · ${FOODS.length} built-in foods · Calorie estimates are approximate; not medical advice.</div>
     <button class="btn danger blk" onclick="resetAll()">Erase all data</button></div>`;
 }
 async function exportData(){
