@@ -72,6 +72,12 @@ input,select,textarea{font-size:16px!important} /* 16px stops iPhone from zoomin
 .sheet.full .shead{flex:none}
 .sheet.full .sres{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;margin:0 -14px;padding:0 14px calc(var(--sab) + 12px)}
 body.lock{overflow:hidden}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.grid4 .btn{padding:9px 2px;font-size:13px}
+.scanbox{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:4/3}
+.scanbox video{width:100%;height:100%;object-fit:cover;display:block}
+.scanbox .aim{position:absolute;left:8%;right:8%;top:38%;bottom:38%;border:2px solid rgba(61,139,255,.9);border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.scanbox .laser{position:absolute;left:10%;right:10%;top:50%;height:2px;background:#ef5350;animation:lz 1.6s ease-in-out infinite}
+@keyframes lz{0%,100%{transform:translateY(-14px)}50%{transform:translateY(14px)}}
 label.f{display:block;margin:10px 0 4px;font-size:13px;color:var(--mut)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
@@ -371,7 +377,7 @@ const DEFAULT_STATE = {
   custom:[],    // custom foods
   saved:[],     // saved meals {id,name,items:[...]}
   recent:[],    // food ids/names
-  settings:{provider:"gemini",geminiKey:"",geminiModel:"gemini-flash-latest",apiKey:"",model:"claude-sonnet-5-5",openrouterKey:"",openrouterModel:"openrouter/free",units:"metric"}
+  settings:{provider:"gemini",geminiKey:"",geminiModel:"gemini-flash-latest",geminiLiteModel:"gemini-flash-lite-latest",apiKey:"",model:"claude-sonnet-5-5",openrouterKey:"",openrouterModel:"openrouter/free",groqKey:"",groqModel:"qwen/qwen3.6-27b",mistralKey:"",mistralModel:"mistral-small-latest",cfModel:"@cf/meta/llama-3.2-11b-vision-instruct",relayUrl:"",relayKey:"",chain:null,units:"metric"}
 };
 let S = null;
 let saveT=null;
@@ -413,10 +419,10 @@ async function hydratePhotos(root=document){ for(const el of root.querySelectorA
 /* ======================= SHEET ======================= */
 function syncVV(){ const v=window.visualViewport; if(!v) return; const r=document.documentElement.style; r.setProperty("--vvh",v.height+"px"); r.setProperty("--vvtop",v.offsetTop+"px"); }
 if(window.visualViewport){ visualViewport.addEventListener("resize",syncVV); visualViewport.addEventListener("scroll",syncVV); } syncVV();
-function openSheet(html,after,opts={}){ const sh=$("#sheet"); sh.classList.toggle("full",!!opts.full); sh.scrollTop=0;
+function openSheet(html,after,opts={}){ stopScanner(); const sh=$("#sheet"); sh.classList.toggle("full",!!opts.full); sh.scrollTop=0;
   $("#sheetBody").innerHTML=html; $("#sheetBg").style.display="block"; document.body.classList.add("lock"); syncVV();
   requestAnimationFrame(()=>sh.classList.add("open")); after&&after($("#sheetBody")); hydratePhotos($("#sheetBody")); }
-function closeSheet(){ const sh=$("#sheet"); sh.classList.remove("open"); $("#sheetBg").style.display="none"; document.body.classList.remove("lock"); if(document.activeElement) document.activeElement.blur(); setTimeout(()=>{ if(!sh.classList.contains("open")) sh.classList.remove("full"); },260); }
+function closeSheet(){ stopScanner(); const sh=$("#sheet"); sh.classList.remove("open"); $("#sheetBg").style.display="none"; document.body.classList.remove("lock"); if(document.activeElement) document.activeElement.blur(); setTimeout(()=>{ if(!sh.classList.contains("open")) sh.classList.remove("full"); },260); }
 $("#sheetBg").onclick=closeSheet;
 
 /* ======================= RENDER: TABS ======================= */
@@ -475,8 +481,8 @@ function renderDash(){
     <div class="grid2">
       <button class="btn" onclick="startPhoto()">📷 Snap a meal</button>
       <button class="btn sec" onclick="openSearch(guessMeal())">🔍 Search food</button>
+      <button class="btn sec" onclick="openScanner(guessMeal())">📦 Scan barcode</button>
       <button class="btn sec" onclick="openQuickAdd(guessMeal())">⚡ Quick calories</button>
-      <button class="btn sec" onclick="openExercise()">🏃 Exercise</button>
     </div>
   </div>
   ${!S.profile?`<div class="card"><h2>Set your goal</h2><p class="mut sm">Tell me about yourself and I'll calculate a daily calorie and macro target.</p><button class="btn blk" onclick="openGoals()">Set up goals</button></div>`:""}
@@ -524,7 +530,8 @@ function openSearch(meal,photoId,opts={}){
   openSheet(`<div class="shead"><h3>${opts.pick?esc(opts.title||"Choose food"):"Add to "+meal} <button class="btn ghost" id="sClose">${opts.back?"Back":"Close"}</button></h3>
     <input type="search" id="q" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Search foods (e.g. dosa, chicken, apple)" autocomplete="off" value="${esc(opts.q||"")}">
     <div class="chips" id="cats"></div>
-    <div class="grid3 ${opts.pick?"hidden":""}" style="margin-bottom:6px">
+    <div class="grid4 ${opts.pick?"hidden":""}" style="margin-bottom:6px">
+      <button class="btn sec" onclick="openScanner('${meal}')">📦 Barcode</button>
       <button class="btn sec" onclick="openQuickAdd('${meal}')">⚡ Quick</button>
       <button class="btn sec" onclick="openCustomFood('${meal}')">＋ New food</button>
       <button class="btn sec" onclick="openSavedMeals('${meal}')">⭐ Meals</button>
@@ -589,9 +596,11 @@ function openQuickAdd(meal,photoId,prefill={}){
       save(); closeSheet(); render(); toast("Added"); };
   });
 }
-function openCustomFood(meal,editId){
-  const ex=editId?S.custom.find(f=>f.id===editId):null;
-  openSheet(`<h3>${ex?"Edit":"New"} food <button class="btn ghost" onclick="closeSheet()">Cancel</button></h3>
+function openCustomFood(meal,editId,pre={}){
+  const ex=editId?S.custom.find(f=>f.id===editId):(pre.name||pre.barcode?{name:pre.name||"",barcode:pre.barcode,unit:pre.unit}:null);
+  const isNew=!editId;
+  openSheet(`<h3>${isNew?"New":"Edit"} food <button class="btn ghost" onclick="closeSheet()">Cancel</button></h3>
+    ${ex?.barcode?`<div class="mut sm">📦 Barcode ${esc(ex.barcode)}${isNew?(pre.why||" – not in the open database yet.")+" Fill it in once from the label; next scan finds it instantly.":""}</div>`:""}
     <p class="mut sm" style="margin-top:0">Copy the values from the nutrition label (per 100 g / 100 ml).</p>
     <label class="f">Type</label><div class="seg" id="cu"><button data-u="g" class="${(ex?.unit||"g")==="g"?"on":""}">🍽 Food (g)</button><button data-u="ml" class="${ex?.unit==="ml"?"on":""}">🥤 Drink (ml)</button></div>
     <label class="f">Name</label><input type="text" id="n" value="${esc(ex?.name||"")}">
@@ -599,13 +608,13 @@ function openCustomFood(meal,editId){
     <div><label class="f">Carbs / 100 g</label><input type="number" id="c" inputmode="decimal" value="${ex?.c??""}"></div><div><label class="f">Fat / 100 g</label><input type="number" id="f" inputmode="decimal" value="${ex?.f??""}"></div>
     <div><label class="f">Serving name</label><input type="text" id="sl" value="${esc(ex?.sLabel||"1 serving")}"></div><div><label class="f">Serving size (g / ml)</label><input type="number" id="sg" inputmode="decimal" value="${ex?.sG||100}"></div></div>
     <button class="btn blk" style="margin-top:14px" id="ok">Save food</button>
-    ${ex?`<button class="btn danger blk" id="del">Delete food</button>`:""}`, b=>{
+    ${!isNew?`<button class="btn danger blk" id="del">Delete food</button>`:""}`, b=>{
     let cu=ex?.unit||"g"; b.querySelectorAll("#cu button").forEach(x=>x.onclick=()=>{cu=x.dataset.u;b.querySelectorAll("#cu button").forEach(y=>y.classList.toggle("on",y===x));});
     b.querySelector("#ok").onclick=()=>{ const g=id=>b.querySelector(id).value; const name=g("#n").trim(); if(!name){toast("Name required");return;}
-      const f={id:ex?.id||"c"+uid(),name,unit:cu,kcal:+g("#k")||0,p:+g("#p")||0,c:+g("#c")||0,f:+g("#f")||0,sLabel:g("#sl")||"1 serving",sG:+g("#sg")||100};
-      if(ex) Object.assign(ex,f); else S.custom.unshift(f); save(); toast("Saved");
+      const f={id:(!isNew&&ex?.id)||"c"+uid(),name,unit:cu,...(ex?.barcode?{barcode:ex.barcode}:{}),kcal:+g("#k")||0,p:+g("#p")||0,c:+g("#c")||0,f:+g("#f")||0,sLabel:g("#sl")||"1 serving",sG:+g("#sg")||100};
+      if(!isNew) Object.assign(ex,f); else S.custom.unshift(f); save(); toast("Saved");
       if(meal) openPortion(f.id,meal); else { closeSheet(); render(); } };
-    if(ex) b.querySelector("#del").onclick=()=>{ S.custom=S.custom.filter(x=>x!==ex); save(); closeSheet(); render(); };
+    if(!isNew) b.querySelector("#del").onclick=()=>{ S.custom=S.custom.filter(x=>x!==ex); save(); closeSheet(); render(); };
   });
 }
 function perUnit(x){ return x.grams>0?{kcal:x.kcal/x.grams,p:x.p/x.grams,c:x.c/x.grams,f:x.f/x.grams}:null; }
@@ -660,29 +669,71 @@ function addSaved(id,meal){ const s=S.saved.find(x=>x.id===id); s.items.forEach(
 function delSaved(id,meal){ S.saved=S.saved.filter(x=>x.id!==id); save(); openSavedMeals(meal); }
 
 /* ======================= PHOTO → CALORIES ======================= */
-async function testAI(){ const k=$('#ak').value.trim(); if(!k){toast("Enter a key first");return;}
-  saveAISettings();
-  if(!navigator.onLine){toast("You're offline");return;} toast("Testing…");
-  const c=document.createElement("canvas"); c.width=c.height=32; const g=c.getContext("2d"); g.fillStyle="#f5a524"; g.fillRect(0,0,32,32);
-  try{ const r=await callAI(c.toDataURL("image/jpeg").split(",")[1],'Reply with JSON {"ok":true}'); toast("✅ Connected via "+r.via); render(); }catch(e){ toast("❌ "+e.message); } }
+function moveProv(k,d){ const c=chain(); const t=c[k]; c[k]=c[k+d]; c[k+d]=t; save(); render(); }
+function openProvider(id){ const p=PROVIDERS[id];
+  openSheet(`<h3>${esc(p.name)} <button class="btn ghost" onclick="closeSheet()">Close</button></h3>
+    ${p.keyField?`<label class="f">API key${id==="gemini"||id==="geminiLite"?" (shared by both Gemini entries)":""}</label><input type="password" id="pk" value="${esc(pKey(id))}" placeholder="${esc(p.hint)}" autocomplete="off" autocapitalize="off">`:""}
+    <div class="mut sm" style="margin-top:6px">Get it: ${esc(p.get)}${p.relay?" · needs the relay":""}</div>
+    <label class="f">Model</label><input type="text" id="pm2" value="${esc(pModel(id))}" autocomplete="off" autocapitalize="off">
+    <div class="mut sm" style="margin-top:6px">Default: ${esc(p.def)}</div>
+    <div class="grid2" style="margin-top:12px"><button class="btn" id="psv">Save</button><button class="btn sec" id="pts">Test</button></div>`, b=>{
+    const saveIt=()=>{ if(p.keyField) S.settings[p.keyField]=b.querySelector("#pk").value.replace(/\s+/g,""); S.settings[p.modelField]=b.querySelector("#pm2").value.trim()||p.def; delete COOL[id]; save(); };
+    b.querySelector("#psv").onclick=()=>{ saveIt(); closeSheet(); render(); toast("Saved"); };
+    b.querySelector("#pts").onclick=()=>{ saveIt(); testProvider(id); };
+  }); }
+function saveRelay(){ S.settings.relayUrl=$("#rlu").value.trim().replace(/\/+$/,""); S.settings.relayKey=$("#rlk").value.trim(); ["groq","mistral","cloudflare"].forEach(id=>delete COOL[id]); save(); }
+async function testRelay(){ saveRelay(); if(!relayUrl()){toast("Enter the relay URL");return;}
+  try{ const r=await fetchT(relayUrl()+"/ping",{headers:S.settings.relayKey?{"x-relay-key":S.settings.relayKey}:{}},10000); const j=await r.json().catch(()=>({}));
+    toast(r.ok&&j.ok?"✅ Relay works"+(j.ai?" · Cloudflare AI ready":""):"❌ Relay: "+(j.error||r.status)); }
+  catch(e){ toast("❌ Relay "+e.message); } render(); }
 function migrateFoodIds(){ const byName={}; FOODS.forEach(f=>byName[f.name]=f.id);
   Object.values(S.days).forEach(d=>d.food.forEach(e=>{ if(e.foodId&&/^d\d+$/.test(e.foodId)){ if(byName[e.name]) e.foodId=byName[e.name]; else delete e.foodId; } }));
   S.saved.forEach(m=>m.items.forEach(e=>{ if(e.foodId&&/^d\d+$/.test(e.foodId)){ if(byName[e.name]) e.foodId=byName[e.name]; else delete e.foodId; } }));
   S.recent=S.recent.filter(id=>!/^d\d+$/.test(id)); }
-const KEY_FIELDS={provider:"provider",gemini_key:"geminiKey",gemini_model:"geminiModel",claude_key:"apiKey",claude_model:"model",anthropic_key:"apiKey",openrouter_key:"openrouterKey",openrouter_model:"openrouterModel"};
+/* ---------- AI providers: tried in order until one answers ---------- */
+const PROVIDERS={
+  groq:      {name:"Groq",              kind:"openai", keyField:"groqKey",       modelField:"groqModel",       def:"qwen/qwen3.6-27b",                       relay:"groq",    base:"https://api.groq.com/openai/v1", hint:"gsk_…",  get:"console.groq.com → API Keys (free)"},
+  mistral:   {name:"Mistral",           kind:"openai", keyField:"mistralKey",    modelField:"mistralModel",    def:"mistral-small-latest",                   relay:"mistral", base:"https://api.mistral.ai/v1", hint:"",       get:"console.mistral.ai → API keys (free Experiment plan)", strImg:true},
+  cloudflare:{name:"Cloudflare AI",     kind:"cfai",   keyField:null,            modelField:"cfModel",         def:"@cf/meta/llama-3.2-11b-vision-instruct", relay:"cfai",                                     hint:"",       get:"runs inside your relay – no key needed"},
+  geminiLite:{name:"Gemini Flash-Lite", kind:"gemini", keyField:"geminiKey",     modelField:"geminiLiteModel", def:"gemini-flash-lite-latest",                                                         hint:"AIza…",  get:"aistudio.google.com → Get API key"},
+  openrouter:{name:"OpenRouter",        kind:"openai", keyField:"openrouterKey", modelField:"openrouterModel", def:"openrouter/free",                                 base:"https://openrouter.ai/api/v1", hint:"sk-or-v1-…", get:"openrouter.ai → Keys"},
+  gemini:    {name:"Gemini Flash",      kind:"gemini", keyField:"geminiKey",     modelField:"geminiModel",     def:"gemini-flash-latest",                                                              hint:"AIza…",  get:"same key as Flash-Lite"},
+  claude:    {name:"Claude",            kind:"claude", keyField:"apiKey",        modelField:"model",           def:"claude-sonnet-5-5",                                                                hint:"sk-ant-…", get:"platform.claude.com → API keys (paid)"},
+};
+const DEFAULT_CHAIN=["groq","mistral","cloudflare","geminiLite","openrouter","gemini","claude"];
+function chain(){ const st=S.settings; if(!Array.isArray(st.chain)||!st.chain.length) st.chain=DEFAULT_CHAIN.map(id=>({id,on:true}));
+  DEFAULT_CHAIN.forEach(id=>{ if(!st.chain.some(c=>c.id===id)) st.chain.push({id,on:true}); }); st.chain=st.chain.filter(c=>PROVIDERS[c.id]); return st.chain; }
+function pKey(id){ const f=PROVIDERS[id].keyField; return f?(S.settings[f]||""):""; }
+function pModel(id){ const p=PROVIDERS[id]; return S.settings[p.modelField]||p.def; }
+function relayUrl(){ return (S.settings.relayUrl||"").trim().replace(/\/+$/,""); }
+const COOL={}; // provider -> {until, why}
+function pStatus(id){ const p=PROVIDERS[id];
+  if(p.keyField&&!pKey(id)) return {ok:false,txt:"🔑 no key"};
+  if(p.relay&&!relayUrl()) return {ok:false,txt:"🛰 needs relay"};
+  const c=COOL[id]; if(c&&c.until>Date.now()) return {ok:false,txt:"⏸ "+c.why+" · retry in "+Math.ceil((c.until-Date.now())/1000)+"s",cool:true};
+  return {ok:true,txt:"✅ ready"}; }
+function anyAIReady(){ return chain().some(c=>c.on&&pStatus(c.id).ok||c.on&&pStatus(c.id).cool); }
+function aiKey(){ return anyAIReady(); }
+function firstReadyName(){ const c=chain().find(c=>c.on&&pStatus(c.id).ok); return c?PROVIDERS[c.id].name:"AI"; }
+
+const KEY_FIELDS={gemini_key:"geminiKey",gemini_model:"geminiModel",gemini_lite_model:"geminiLiteModel",claude_key:"apiKey",claude_model:"model",anthropic_key:"apiKey",
+  openrouter_key:"openrouterKey",openrouter_model:"openrouterModel",groq_key:"groqKey",groq_model:"groqModel",mistral_key:"mistralKey",mistral_model:"mistralModel",
+  cloudflare_model:"cfModel",relay_url:"relayUrl",relay_key:"relayKey",relay_password:"relayKey"};
+const ORDER_ALIASES={groq:"groq",mistral:"mistral",cloudflare:"cloudflare",cf:"cloudflare",gemini_lite:"geminiLite",geminilite:"geminiLite",flashlite:"geminiLite",openrouter:"openrouter",gemini:"gemini",gemini_flash:"gemini",claude:"claude",anthropic:"claude"};
 function applyKeysText(txt){
   let pairs={};
-  try{ const j=JSON.parse(txt); const flat=(o,pre="")=>Object.entries(o).forEach(([k,v])=>typeof v==="object"&&v?flat(v,pre+k+"_"):pairs[(pre+k).toLowerCase()]=String(v)); flat(j); }
+  try{ const j=JSON.parse(txt); const flat=(o,pre="")=>Object.entries(o).forEach(([k,v])=>typeof v==="object"&&v&&!Array.isArray(v)?flat(v,pre+k+"_"):pairs[(pre+k).toLowerCase()]=String(v)); flat(j); }
   catch{ txt.split(/\r?\n/).forEach(l=>{ l=l.trim(); if(!l||l.startsWith("#")) return; const m=l.match(/^([A-Za-z_]+)\s*[=:]\s*(.*)$/); if(m) pairs[m[1].toLowerCase()]=m[2].trim().replace(/^["']|["']$/g,""); }); }
-  pairs.gemini_key??=pairs.gemini_apikey; pairs.claude_key??=pairs.claude_apikey; pairs.openrouter_key??=pairs.openrouter_apikey;
+  pairs.gemini_key??=pairs.gemini_apikey; pairs.claude_key??=pairs.claude_apikey; pairs.openrouter_key??=pairs.openrouter_apikey; pairs.groq_key??=pairs.groq_apikey; pairs.mistral_key??=pairs.mistral_apikey;
   const done=[];
   for(const [k,field] of Object.entries(KEY_FIELDS)){ let v=pairs[k]; if(v==null) continue; v=v.trim();
-    if(!v || /^paste|^your|^x+$|placeholder/i.test(v)) continue;
-    if(field==="provider"){ v=v.toLowerCase(); v=v==="claude"?"anthropic":v; if(!["gemini","anthropic"].includes(v)) continue; }
+    if(!v || /^paste|^your|^x+$|placeholder|^https:\/\/your/i.test(v)) continue;
     if(/Key$/.test(field)) v=v.replace(/\s+/g,"");
     S.settings[field]=v; done.push(k); }
-  normalizeKeys(); if(pairs.provider&&/gemini|claude|anthropic/i.test(pairs.provider)) S.settings.provider=/gemini/i.test(pairs.provider)?"gemini":"anthropic";
-  save(); return done; }
+  if(pairs.order){ const ids=pairs.order.split(/[,>\s]+/).map(x=>ORDER_ALIASES[x.toLowerCase().replace(/-/g,"_")]).filter(Boolean);
+    if(ids.length){ const rest=chain().filter(c=>!ids.includes(c.id)).map(c=>({id:c.id,on:false}));
+      S.settings.chain=[...new Set(ids)].map(id=>({id,on:true})).concat(rest); done.push("order"); } }
+  normalizeKeys(); save(); return done; }
 function mask(k){ return k?k.slice(0,4)+"…"+k.slice(-4):"not set"; }
 function loadKeysFile(){ $("#keysInput").click(); }
 function pasteKeys(){ openSheet(`<h3>Paste keys <button class="btn ghost" onclick="closeSheet()">Cancel</button></h3>
@@ -690,95 +741,90 @@ function pasteKeys(){ openSheet(`<h3>Paste keys <button class="btn ghost" onclic
   <textarea id="kt" rows="9" placeholder="gemini_key = AIza..."></textarea>
   <button class="btn blk" style="margin-top:10px" id="ok">Apply keys</button>`, b=>{
   b.querySelector("#ok").onclick=()=>{ const d=applyKeysText(b.querySelector("#kt").value); closeSheet(); render(); toast(d.length?"✅ Updated: "+d.join(", "):"No keys found (placeholders are ignored)"); }; }); }
-function keyType(k){ k=(k||"").trim(); return k.startsWith("AIza")?"gemini":k.startsWith("sk-ant")?"anthropic":k.startsWith("sk-or-")?"openrouter":null; }
-function normalizeKeys(){ const st=S.settings;
-  if(keyType(st.apiKey)==="gemini"){ st.geminiKey=st.apiKey.trim(); st.apiKey=""; }
-  if(keyType(st.geminiKey)==="anthropic"){ st.apiKey=st.geminiKey.trim(); st.geminiKey=""; }
-  st.geminiKey=(st.geminiKey||"").replace(/\s+/g,""); st.apiKey=(st.apiKey||"").replace(/\s+/g,"");
-  if(st.geminiKey&&!st.apiKey) st.provider="gemini"; else if(st.apiKey&&!st.geminiKey) st.provider="anthropic"; }
-function saveAISettings(){ const k=$('#ak').value.replace(/\s+/g,""), m=$('#am').value.trim(); let t=keyType(k)||S.settings.provider;
-  if(t==="openrouter"){ S.settings.openrouterKey=k; save(); return "openrouter"; }
-  if(t==="gemini"){ S.settings.geminiKey=k; S.settings.geminiModel=(S.settings.provider==="gemini"&&m)||S.settings.geminiModel||"gemini-flash-latest"; }
-  else { S.settings.apiKey=k; S.settings.model=(S.settings.provider==="anthropic"&&m)||S.settings.model||"claude-sonnet-5-5"; }
-  S.settings.provider=t; save(); return t; }
-function saveOR(){ S.settings.openrouterKey=$('#ork').value.replace(/\s+/g,""); S.settings.openrouterModel=$('#orm').value.trim()||"openrouter/free"; save(); }
-async function testOR(){ saveOR(); if(!S.settings.openrouterKey){toast("Enter an OpenRouter key");return;} if(!navigator.onLine){toast("You're offline");return;} toast("Testing backup…");
-  const c=document.createElement("canvas"); c.width=c.height=32; c.getContext("2d").fillRect(0,0,32,32);
-  try{ const r=await callOpenRouter(c.toDataURL("image/jpeg").split(",")[1],'Reply with JSON {"ok":true}'); toast("✅ Backup works ("+r.model+")"); }catch(e){ toast("❌ "+e.message); } }
-function aiKey(){ return primaryKey()||S.settings.openrouterKey; }
+function keyType(k){ k=(k||"").trim(); return k.startsWith("AIza")?"gemini":k.startsWith("sk-ant")?"anthropic":k.startsWith("sk-or-")?"openrouter":k.startsWith("gsk_")?"groq":null; }
+function normalizeKeys(){ const st=S.settings; const fields=["geminiKey","apiKey","openrouterKey","groqKey","mistralKey"];
+  fields.forEach(f=>st[f]=(st[f]||"").replace(/\s+/g,""));
+  const home={gemini:"geminiKey",anthropic:"apiKey",openrouter:"openrouterKey",groq:"groqKey"};
+  fields.forEach(f=>{ const t=keyType(st[f]); if(t&&home[t]!==f){ if(!st[home[t]]) st[home[t]]=st[f]; st[f]=""; } }); // a key pasted in the wrong box moves to its own box
+  chain(); }
 function httpErr(status,msg){ const e=new Error(msg); e.status=status; return e; }
 // fetch with a time limit, so a stuck request fails instead of spinning forever
-async function fetchT(url,opts,ms=60000){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),ms);
+async function fetchT(url,opts,ms=25000){ const c=new AbortController(); const t=setTimeout(()=>c.abort(),ms);
   try{ return await fetch(url,{...opts,signal:c.signal}); }
-  catch(e){ throw new Error(e.name==="AbortError"?"The AI took too long to answer (timeout).":(navigator.onLine?"Network problem: "+e.message:"You're offline.")); }
+  catch(e){ throw new Error(e.name==="AbortError"?"timed out":(navigator.onLine?"blocked or unreachable":"offline")); }
   finally{ clearTimeout(t); } }
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-function isRecoverable(e){ return !e.status || e.status===429 || e.status>=500; }
+function parseErr(m){ const e=new Error(m); e.name="ParseError"; return e; }
 function parseAIJson(txt){
-  let t=String(txt||"").replace(/```(?:json)?/gi,"").trim(); const a=t.indexOf("{"), z=t.lastIndexOf("}");
-  if(a<0||z<=a) throw new Error("The AI reply had no food list.");
+  let t=String(txt||"").replace(/<think>[\s\S]*?<\/think>/gi,"").replace(/```(?:json)?/gi,"").trim(); const a=t.indexOf("{"), z=t.lastIndexOf("}");
+  if(a<0||z<=a) throw parseErr("The AI reply had no food list.");
   t=t.slice(a,z+1); try{ return JSON.parse(t); }catch{}
-  try{ return JSON.parse(t.replace(/,\s*([}\]])/g,"$1").replace(/[“”]/g,'"')); }catch{ throw new Error("The AI reply was cut off or malformed."); } }
-async function callPrimary(b64,prompt){
-  const s=S.settings;
-  if(s.provider==="gemini"){
-    const model=(s.geminiModel||"gemini-flash-latest").replace(/^models\//,"");
-    const res=await fetchT(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:"POST",
-      headers:{"content-type":"application/json","x-goog-api-key":s.geminiKey},
-      body:JSON.stringify({contents:[{role:"user",parts:[{inline_data:{mime_type:"image/jpeg",data:b64}},{text:prompt}]}],generationConfig:{responseMimeType:"application/json"}})});
-    if(!res.ok){ let msg=await res.text(); try{msg=JSON.parse(msg).error.message;}catch{}
-      if(/API key not valid|API_KEY_INVALID/i.test(msg)) msg="Gemini says the key is not valid. Copy it again from aistudio.google.com → API keys.";
-      else if(res.status===403) msg="Gemini refused the key (403). In AI Studio/Google Cloud, remove website restrictions on the key or allow the Generative Language API. ("+msg+")";
-      else if(res.status===404) msg="Model '"+model+"' not found. Set the model to gemini-flash-latest.";
-      else if(res.status===429) msg="Gemini quota reached — wait a minute and try again.";
-      throw httpErr(res.status,"Gemini "+res.status+": "+String(msg).slice(0,220)); }
+  try{ return JSON.parse(t.replace(/,\s*([}\]])/g,"$1").replace(/[“”]/g,'"')); }catch{ throw parseErr("The AI reply was cut off or malformed."); } }
+function errMsg(res,body){ let m=body; try{ const j=JSON.parse(body); m=j.error?.message||j.message||j.detail||j.errors?.[0]?.message||body; }catch{} return String(m||res.statusText||"error").slice(0,180); }
+async function callProvider(id,b64,prompt,ms=25000){
+  const p=PROVIDERS[id], model=pModel(id), key=pKey(id), dataUrl="data:image/jpeg;base64,"+b64, relay=relayUrl();
+  const relayHdr=S.settings.relayKey?{"x-relay-key":S.settings.relayKey}:{};
+  if(p.kind==="gemini"){
+    const res=await fetchT(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model.replace(/^models\//,""))}:generateContent`,{method:"POST",
+      headers:{"content-type":"application/json","x-goog-api-key":key},
+      body:JSON.stringify({contents:[{role:"user",parts:[{inline_data:{mime_type:"image/jpeg",data:b64}},{text:prompt}]}],generationConfig:{responseMimeType:"application/json"}})},ms);
+    if(!res.ok){ const m=errMsg(res,await res.text()); throw httpErr(res.status,/API key not valid|API_KEY_INVALID/i.test(m)?"key not valid":m); }
     const j=await res.json(); const parts=j.candidates?.[0]?.content?.parts||[];
-    const txt=parts.filter(p=>!p.thought).map(p=>p.text||"").join(""); if(!txt) throw new Error(j.promptFeedback?.blockReason||"Empty reply from Gemini"); return txt;
-  }
-  const res=await fetchT("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":s.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-    body:JSON.stringify({model:s.model||"claude-sonnet-5-5",max_tokens:1024,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:prompt}]}]})});
-  if(!res.ok){ const t=await res.text(); throw httpErr(res.status,"Claude "+res.status+": "+(res.status===401?"key rejected by Anthropic. If you meant to use Gemini, paste your AIza… key under Google Gemini.":t.slice(0,140))); }
-  const j=await res.json(); return j.content.map(c=>c.text||"").join("");
+    const t=parts.filter(x=>!x.thought).map(x=>x.text||"").join(""); if(!t) throw httpErr(502,j.promptFeedback?.blockReason||"empty reply"); return t; }
+  if(p.kind==="claude"){
+    const res=await fetchT("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model,max_tokens:1200,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:prompt}]}]})},ms);
+    if(!res.ok) throw httpErr(res.status,errMsg(res,await res.text()));
+    const j=await res.json(); return (j.content||[]).map(c=>c.text||"").join(""); }
+  if(p.kind==="cfai"){
+    const res=await fetchT(relay+"/cfai",{method:"POST",headers:{"content-type":"application/json",...relayHdr},body:JSON.stringify({model,prompt,image:dataUrl})},ms);
+    if(!res.ok) throw httpErr(res.status,errMsg(res,await res.text()));
+    const j=await res.json(); if(!j.text) throw httpErr(502,"empty reply"); return j.text; }
+  // OpenAI-compatible (Groq, Mistral via relay; OpenRouter direct)
+  const url=p.relay?`${relay}/v1/${p.relay}/chat/completions`:`${p.base}/chat/completions`;
+  const body={model,max_tokens:1500,temperature:0.2,messages:[{role:"user",content:[{type:"text",text:prompt},{type:"image_url",image_url:p.strImg?dataUrl:{url:dataUrl}}]}]};
+  if(id==="groq") body.reasoning_format="hidden";
+  const hdr={"content-type":"application/json","authorization":"Bearer "+key,...(p.relay?relayHdr:{}),...(id==="openrouter"?{"HTTP-Referer":location.origin,"X-Title":"FuelTrack"}:{})};
+  let res=await fetchT(url,{method:"POST",headers:hdr,body:JSON.stringify(body)},ms);
+  if(res.status===400&&body.reasoning_format){ delete body.reasoning_format; res=await fetchT(url,{method:"POST",headers:hdr,body:JSON.stringify(body)},ms); }
+  if(!res.ok) throw httpErr(res.status,errMsg(res,await res.text()));
+  const j=await res.json(); if(j.error) throw httpErr(502,j.error.message||"error");
+  const c=j.choices?.[0]?.message?.content; const t=Array.isArray(c)?c.map(x=>x.text||"").join(""):(c||"");
+  if(!t) throw httpErr(502,"empty reply"); return t;
 }
-async function callOpenRouter(b64,prompt){
-  const s=S.settings; const model=s.openrouterModel||"openrouter/free";
-  const res=await fetchT("https://openrouter.ai/api/v1/chat/completions",{method:"POST",
-    headers:{"content-type":"application/json","authorization":"Bearer "+s.openrouterKey,"HTTP-Referer":location.origin,"X-Title":"FuelTrack"},
-    body:JSON.stringify({model,messages:[{role:"user",content:[{type:"text",text:prompt},{type:"image_url",image_url:{url:"data:image/jpeg;base64,"+b64}}]}]})});
-  if(!res.ok){ let msg=await res.text(); try{msg=JSON.parse(msg).error.message;}catch{}
-    if(res.status===401) msg="OpenRouter key not valid. Copy it again from openrouter.ai/keys.";
-    else if(res.status===429) msg="OpenRouter free limit reached for today.";
-    else if(res.status===404) msg="Model '"+model+"' not available. Use openrouter/free.";
-    throw httpErr(res.status,"OpenRouter "+res.status+": "+String(msg).slice(0,200)); }
-  const j=await res.json(); if(j.error) throw httpErr(502,"OpenRouter: "+(j.error.message||"error"));
-  const c=j.choices?.[0]?.message?.content; const txt=Array.isArray(c)?c.map(x=>x.text||"").join(""):(c||"");
-  if(!txt) throw new Error("Empty reply from OpenRouter"); return {text:txt, model:j.model||model};
+function coolFor(id,e){ const st=e.status;
+  const [sec,why]= st===429?[90,"limit reached"]: (st===401||st===403)?[600,"key rejected"]: st===404?[600,"model not found"]: (st>=500||!st)?[45,"busy/offline"]:[20,"error"];
+  COOL[id]={until:Date.now()+sec*1000,why}; }
+function friendly(e){ const st=e.status; return st===429?"limit reached":st===401||st===403?"key rejected":st===404?"model not found":st===503||st===529?"overloaded":st>=500?"server error":e.message||"failed"; }
+// Try each provider in order. Returns {text, json?, via, tried:[...]}.
+async function callAI(b64,prompt,opts={}){
+  if(!navigator.onLine) throw new Error("You're offline.");
+  const list=chain().filter(c=>c.on).map(c=>c.id); const tried=[];
+  let any=false;
+  for(const id of list){ const stt=pStatus(id); if(!stt.ok){ if(stt.cool) tried.push(`${PROVIDERS[id].name}: ${COOL[id].why}`); continue; } any=true;
+    try{ const text=await callProvider(id,b64,prompt);
+      const json=opts.parse?parseAIJson(text):undefined; delete COOL[id];
+      return {text,json,via:PROVIDERS[id].name+" · "+pModel(id).replace(/^@cf\/[^/]+\/|^[^/]+\//,""),tried}; }
+    catch(e){ if(e.name==="ParseError") COOL[id]={until:Date.now()+15000,why:"unreadable reply"}; else coolFor(id,e); tried.push(`${PROVIDERS[id].name}: ${e.name==="ParseError"?"unreadable reply":friendly(e)}`); } }
+  if(!any&&!tried.length) throw new Error("No AI service is set up yet. Add a key in More → Food recognition AI.");
+  const e=new Error("All AI services failed: "+tried.join(" · ")); e.tried=tried; throw e;
 }
-function primaryKey(){ const s=S.settings; return s.provider==="gemini"?s.geminiKey:s.apiKey; }
-function primaryName(){ return S.settings.provider==="gemini"?"Gemini":"Claude"; }
-// Returns {text, via}. Falls back to OpenRouter when the primary is out of quota, overloaded or unreachable.
-async function callAI(b64,prompt){
-  const s=S.settings;
-  if(!primaryKey()){ if(!s.openrouterKey) throw new Error("No AI key set"); const r=await callOpenRouter(b64,prompt); return {text:r.text,via:"OpenRouter · "+r.model}; }
-  let err;
-  for(let attempt=0; attempt<2; attempt++){ // one automatic retry for hiccups
-    try{ return {text:await callPrimary(b64,prompt), via:primaryName()+(attempt?" (2nd try)":"")}; }
-    catch(e){ err=e; if(!isRecoverable(e)) throw e; if(attempt===0) await sleep(e.status===429?3000:1500); } }
-  { const e=err;
-    if(!s.openrouterKey) throw e;
-    const r=await callOpenRouter(b64,prompt);
-    return {text:r.text, via:"OpenRouter backup · "+r.model, fallbackReason:e.message};
-  }
-}
+async function testProvider(id){ if(!navigator.onLine){toast("You're offline");return;}
+  const stt=pStatus(id); if(!stt.ok&&!stt.cool){ toast(stt.txt); return; } delete COOL[id]; toast("Testing "+PROVIDERS[id].name+"…");
+  const c=document.createElement("canvas"); c.width=c.height=64; const g=c.getContext("2d"); g.fillStyle="#f5a524"; g.fillRect(0,0,64,64);
+  try{ const t=await callProvider(id,c.toDataURL("image/jpeg",0.75).split(",")[1],'Reply with only this JSON: {"ok":true}'); parseAIJson(t); toast("✅ "+PROVIDERS[id].name+" works"); }
+  catch(e){ coolFor(id,e); toast("❌ "+PROVIDERS[id].name+": "+(e.name==="ParseError"?"unreadable reply":(e.status?e.status+" ":"")+e.message)); }
+  if(tab==="more") render(); }
 let photoMeal=null;
 function startPhoto(meal){ photoMeal=meal||guessMeal();
   openSheet(`<h3>Snap a meal <button class="btn ghost" onclick="closeSheet()">Cancel</button></h3>
     <div class="grid2"><button class="btn" onclick="$('#camInput').click()">📷 Take photo</button><button class="btn sec" onclick="$('#libInput').click()">🖼 From library</button></div>
-    <p class="mut sm">${aiKey()?"With internet, AI identifies the food and estimates portions & calories. Offline, you pick the foods yourself and the photo is saved with the entry.":"Offline mode: the photo is saved with your entry and you tap the foods and portions on the plate. Add a Gemini API key in More to get automatic AI calorie estimates when online."}</p>`); }
+    <button class="btn sec blk" style="margin-top:8px" onclick="openScanner(photoMeal)">📦 Packaged food? Scan its barcode instead</button>
+    <p class="mut sm">${aiKey()?"With internet, AI identifies the food and estimates portions & calories. Offline, you pick the foods yourself and the photo is saved with the entry.":"Offline mode: the photo is saved with your entry and you tap the foods and portions on the plate. Set up a free AI service in More → Food recognition AI to get automatic estimates when online."}</p>`); }
 const origPhotos={}; // full-quality originals from this session, for "Save to Photos"
 $("#camInput").onchange=$("#libInput").onchange=async e=>{ const file=e.target.files[0]; const fromCam=e.target.id==="camInput"; e.target.value=""; if(!file) return;
   try{ const im=await fileToImg(file); const keep=resize(im,1280,0.8); const pid="p"+uid(); await DB.set(pid,keep,"photos"); photoCache[pid]=keep;
-    origPhotos[pid]=file; const ai=resize(im,1024,0.82); photoReview(pid,ai,fromCam); }catch(err){ toast("Could not read photo"); } };
+    origPhotos[pid]=file; const ai=resize(im,768,0.75); photoReview(pid,ai,fromCam); }catch(err){ toast("Could not read photo"); } };
 function dataUrlToBlob(u){ const [h,b]=u.split(","); const bin=atob(b); const a=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); return new Blob([a],{type:(h.match(/data:(.*?);/)||[])[1]||"image/jpeg"}); }
 async function savePhoto(pid,label){
   let blob=origPhotos[pid]; if(!blob){ const u=await photoURL(pid); if(!u){toast("Photo not found");return;} blob=dataUrlToBlob(u); }
@@ -795,7 +841,7 @@ function photoReview(pid,aiData,fromCam){
     <button class="btn ${fromCam?"":"sec"} blk" style="margin-top:8px" onclick="savePhoto('${pid}',photoMeal)">💾 Save photo to iPhone Photos</button>
     <label class="f">Meal</label><select id="pm">${MEALS.map(m=>`<option ${m===photoMeal?'selected':''}>${m}</option>`).join("")}</select>
     <div id="aiBox" style="margin-top:12px">
-      ${canAI?`<button class="btn blk" id="aiBtn">✨ Estimate calories with ${S.settings.provider==="gemini"?"Gemini":"Claude"}</button>`:`<div class="card" style="background:var(--card2)"><div class="sm">${!online?"📴 You're offline.":"🔑 No AI key set."} Pick what's on the plate:</div></div>`}
+      ${canAI?`<button class="btn blk" id="aiBtn">✨ Estimate calories with AI</button>`:`<div class="card" style="background:var(--card2)"><div class="sm">${!online?"📴 You're offline.":"🔑 No AI service set up."} Pick what's on the plate:</div></div>`}
     </div>
     <div class="grid2" style="margin-top:8px"><button class="btn sec" id="pick">🔍 Pick foods</button><button class="btn sec" id="quick">⚡ Enter calories</button></div>`, b=>{
     const meal=()=>{photoMeal=b.querySelector("#pm").value; return photoMeal;};
@@ -812,24 +858,23 @@ async function runAI(pid,dataUrl,meal,b){
   const box=b.querySelector("#aiBox"); box.innerHTML=`<div class="card" style="background:var(--card2)"><span class="spin"></span> Analysing your plate…</div>`;
   try{
     const prompt=`You are a nutrition estimator. Identify each distinct food or drink in this photo and estimate the portion and its nutrition. Consider plate size and typical serving sizes. This user mostly eats Tamil Nadu / South Indian food (idli, dosa, sambar, rasam, kuzhambu, poriyal, curd rice, biryani, parotta) and also German food; use Tamil dish names where they fit and account for ghee and oil. Use "ml" as unit for drinks (tea, coffee, milk, juice, buttermilk, soft drinks, beer) and "g" for everything else. Reply ONLY with JSON: {"items":[{"name":string,"amount":number,"unit":"g"|"ml","kcal":number,"protein":number,"carbs":number,"fat":number}],"confidence":"low"|"medium"|"high","note":string}`;
-    let ai,out;
-    for(let k=0;k<2;k++){ ai=await callAI(dataUrl.split(",")[1],prompt); try{ out=parseAIJson(ai.text); break; }catch(pe){ if(k===1) throw pe; } } // re-ask once if the reply is garbled
+    const ai=await callAI(dataUrl.split(",")[1],prompt,{parse:true}); const out=ai.json;
     const items=(out.items||[]).map(i=>{ let a=+(i.amount??i.grams)||0; const kc=+i.kcal||0, pr=+i.protein||0, cb=+i.carbs||0, ft=+i.fat||0;
       const unit=(String(i.unit).toLowerCase()==="ml"||liquidName(i.name||"",""))?"ml":"g"; const base=a>0?a:100; if(!a) a=100;
       return {name:i.name||"Item",unit,amount:r0(a),per:{kcal:kc/base,p:pr/base,c:cb/base,f:ft/base},on:true}; });
     if(!items.length) throw new Error("No food recognised");
-    RV={pid,meal:b.querySelector("#pm").value,items,conf:out.confidence||"",note:out.note||"",via:ai.via,fb:ai.fallbackReason};
+    RV={pid,meal:b.querySelector("#pm").value,items,conf:out.confidence||"",note:out.note||"",via:ai.via,fb:ai.tried.length?"Skipped: "+ai.tried.join(" · "):""};
     openReview();
   }catch(err){
     box.innerHTML=`<div class="card" style="background:var(--card2)"><div class="sm" style="color:var(--warn)">⚠️ AI estimate failed</div><div class="mut sm" style="margin:4px 0 10px">${esc(err.message)}</div>
-      <button class="btn blk" id="aiRetry">🔄 Retry</button><div class="mut sm" style="margin-top:6px">${S.settings.openrouterKey?"":"Tip: add a free OpenRouter backup key in More, so a busy Gemini is covered automatically. "}Or pick the foods yourself below.</div></div>`;
-    box.querySelector("#aiRetry").onclick=()=>runAI(pid,dataUrl,b.querySelector("#pm").value,b); }
+      <button class="btn blk" id="aiRetry">🔄 Retry</button><div class="mut sm" style="margin-top:6px">${chain().filter(c=>c.on&&pStatus(c.id).ok).length<2?"Tip: set up more services in More → Food recognition AI so a busy one is covered automatically. ":""}Or pick the foods yourself below.</div></div>`;
+    box.querySelector("#aiRetry").onclick=()=>{ for(const k in COOL) if(!/key|model/.test(COOL[k].why)) delete COOL[k]; runAI(pid,dataUrl,b.querySelector("#pm").value,b); }; }
 }
 function openReview(){
   const R=RV; if(!R) return;
   openSheet(`<h3>Check your meal <button class="btn ghost" onclick="closeSheet()">Cancel</button></h3>
     <div class="row"><img class="thumb" data-pid="${R.pid}" alt="" style="width:64px;height:64px" onclick="savePhoto('${R.pid}',RV&&RV.meal)" title="Tap to save to Photos">
-      <div class="grow"><div class="sm">${esc(R.conf)} confidence · via ${esc(R.via)}</div><button class="btn ghost sm" style="padding:2px 0" onclick="savePhoto('${R.pid}',RV&&RV.meal)">💾 Save photo to iPhone</button>${R.fb?`<div class="mut sm">${esc(primaryName())} was unavailable</div>`:""}${R.note?`<div class="mut sm">${esc(R.note)}</div>`:""}</div></div>
+      <div class="grow"><div class="sm">${esc(R.conf)} confidence · via ${esc(R.via)}</div><button class="btn ghost sm" style="padding:2px 0" onclick="savePhoto('${R.pid}',RV&&RV.meal)">💾 Save photo to iPhone</button>${R.fb?`<div class="mut sm">${esc(R.fb)}</div>`:""}${R.note?`<div class="mut sm">${esc(R.note)}</div>`:""}</div></div>
     <p class="mut sm">Tap a name to rename it, 🔄 to swap it for a food from the list, and change the amount if the portion is off.</p>
     <div id="rvItems">${R.items.map((i,k)=>`<div class="card" style="background:var(--card2);padding:10px;margin-bottom:8px;${i.on?"":"opacity:.45"}">
       <div class="row"><input type="checkbox" data-on="${k}" ${i.on?"checked":""} style="width:22px;height:22px;flex:none">
@@ -868,6 +913,70 @@ function openReview(){
       RV=null; save(); closeSheet(); render(); toast("Meal logged"); };
     upd();
   });
+}
+
+/* ======================= BARCODE → OPEN FOOD FACTS ======================= */
+let SCAN=null;
+function stopScanner(){ if(!SCAN) return; SCAN.stop=true; clearTimeout(SCAN.t); try{ SCAN.stream&&SCAN.stream.getTracks().forEach(t=>t.stop()); }catch{} SCAN=null; }
+function loadZXing(){ if(window.ZXing) return Promise.resolve(window.ZXing);
+  return new Promise((res,rej)=>{ const sc=document.createElement("script"); sc.src="zxing.min.js"; sc.onload=()=>window.ZXing?res(window.ZXing):rej(new Error("Scanner failed to load")); sc.onerror=()=>rej(new Error("Scanner not downloaded yet – open the app once online")); document.head.appendChild(sc); }); }
+function zxReader(Z){ const h=new Map(); const F=Z.BarcodeFormat;
+  h.set(Z.DecodeHintType.POSSIBLE_FORMATS,[F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E,F.CODE_128]); h.set(Z.DecodeHintType.TRY_HARDER,true);
+  const r=new Z.MultiFormatReader(); r.setHints(h); return r; }
+function decodeCanvas(Z,r,cv){ try{ return r.decodeWithState(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(cv)))).getText(); }catch{ return null; } finally{ try{ r.reset(); }catch{} } }
+async function decodeImageFile(file){ const Z=await loadZXing(), r=zxReader(Z), im=await fileToImg(file);
+  for(const w of [1000,1600,700]){ for(const rot of [0,90]){ const sc=Math.min(1,w/Math.max(im.width,im.height)), cw=Math.round(im.width*sc), ch=Math.round(im.height*sc);
+      const cv=document.createElement("canvas"); cv.width=rot?ch:cw; cv.height=rot?cw:ch; const g=cv.getContext("2d");
+      if(rot){ g.translate(cv.width/2,cv.height/2); g.rotate(Math.PI/2); g.drawImage(im,-cw/2,-ch/2,cw,ch); } else g.drawImage(im,0,0,cw,ch);
+      const t=decodeCanvas(Z,r,cv); if(t) return t; } } return null; }
+function openScanner(meal){ meal=meal||guessMeal();
+  openSheet(`<h3>Scan barcode <button class="btn ghost" onclick="closeSheet()">Close</button></h3>
+    <div class="scanbox"><video id="scv" playsinline muted autoplay></video><div class="aim"></div><div class="laser"></div></div>
+    <div class="mut sm" id="scs" style="margin:8px 0">Starting camera…</div>
+    <div class="grid2"><button class="btn sec" id="scp">📷 Photo of barcode</button><button class="btn sec" id="sct">⌨️ Type number</button></div>
+    <div class="row hidden" id="scm" style="margin-top:8px"><input type="number" inputmode="numeric" id="scn" placeholder="e.g. 4008400402222"><button class="btn" id="scg" style="flex:none">Look up</button></div>
+    <input type="file" id="scf" accept="image/*" capture="environment" class="hidden">
+    <p class="mut sm">Nutrition comes from Open Food Facts (free, per 100 g/ml from the label). Scanned products are saved to My Foods, so they work offline next time.</p>`, async b=>{
+    const st=t=>{ const e=b.querySelector("#scs"); if(e) e.textContent=t; };
+    b.querySelector("#sct").onclick=()=>{ b.querySelector("#scm").classList.remove("hidden"); b.querySelector("#scn").focus(); };
+    b.querySelector("#scg").onclick=()=>{ const c=b.querySelector("#scn").value.replace(/\D/g,""); if(c.length<6){toast("Enter the digits under the barcode");return;} lookupBarcode(c,meal); };
+    b.querySelector("#scp").onclick=()=>b.querySelector("#scf").click();
+    b.querySelector("#scf").onchange=async e=>{ const f=e.target.files[0]; e.target.value=""; if(!f) return; st("Reading photo…");
+      try{ const c=await decodeImageFile(f); if(c) lookupBarcode(c,meal); else st("No barcode found in that photo. Try closer, flat and well-lit – or type the number."); }catch(err){ st(err.message); } };
+    let Z; try{ Z=await loadZXing(); }catch(err){ st(err.message); return; }
+    if(!navigator.mediaDevices?.getUserMedia){ st("Live camera isn't available here – use 'Photo of barcode'."); return; }
+    try{ const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});
+      if(!b.isConnected||!$("#scv")){ stream.getTracks().forEach(t=>t.stop()); return; }
+      SCAN={stream,stop:false}; const v=b.querySelector("#scv"); v.srcObject=stream; await v.play().catch(()=>{});
+      st("Point the camera at the barcode"); const r=zxReader(Z), cv=document.createElement("canvas"); let seen={}, mine=SCAN;
+      const tick=()=>{ if(!SCAN||SCAN!==mine||mine.stop) return;
+        if(v.videoWidth){ const sw=v.videoWidth, sh=Math.round(v.videoHeight*0.45), sy=Math.round((v.videoHeight-sh)/2), sc=Math.min(1,900/sw);
+          cv.width=Math.round(sw*sc); cv.height=Math.round(sh*sc); cv.getContext("2d").drawImage(v,0,sy,sw,sh,0,0,cv.width,cv.height);
+          const c=decodeCanvas(Z,r,cv); if(c){ seen[c]=(seen[c]||0)+1; if(seen[c]>=2||c.length===13){ stopScanner(); lookupBarcode(c,meal); return; } } }
+        mine.t=setTimeout(tick,180); };
+      tick();
+    }catch(err){ st(err.name==="NotAllowedError"?"Camera permission was refused – allow it in iPhone Settings, or use 'Photo of barcode'.":"Couldn't start the camera – use 'Photo of barcode'."); }
+  },{full:true}); }
+function offToFood(code,pr){ const n=pr.nutriments||{};
+  let kcal=n["energy-kcal_100g"]; if(kcal==null&&n.energy_100g!=null) kcal=n.energy_100g/4.184; if(kcal==null) return null;
+  const unit=(String(pr.nutrition_data_per||"").includes("ml")||/^(ml|l|cl|dl)$/i.test(pr.product_quantity_unit||""))?"ml":"g";
+  const nm=(pr.product_name||pr.product_name_en||pr.product_name_de||"Product "+code).trim(); const br=(pr.brands||"").split(",")[0].trim();
+  const sq=parseFloat(pr.serving_quantity)||0;
+  return {id:"bc"+code,barcode:code,name:br&&!nm.toLowerCase().includes(br.toLowerCase())?`${nm} (${br})`:nm,unit,
+    kcal:r1(+kcal),p:r1(+n.proteins_100g||0),c:r1(+n.carbohydrates_100g||0),f:r1(+n.fat_100g||0),
+    sLabel:sq?(pr.serving_size||`1 serving`):`100 ${unit}`,sG:sq||100,src:"Open Food Facts"}; }
+async function lookupBarcode(code,meal){
+  const have=S.custom.find(f=>f.barcode===code); if(have){ pushRecent(have.id); save(); openPortion(have.id,meal); toast("📦 "+have.name); return; }
+  if(!navigator.onLine){ openCustomFood(meal,null,{barcode:code,why:" – you're offline, so it couldn't be looked up."}); return; }
+  openSheet(`<h3>Looking up ${esc(code)}… <button class="btn ghost" onclick="closeSheet()">Cancel</button></h3><div class="card" style="background:var(--card2)"><span class="spin"></span> Checking Open Food Facts</div>`);
+  const fields="code,product_name,product_name_en,product_name_de,brands,nutriments,serving_size,serving_quantity,quantity,product_quantity,product_quantity_unit,nutrition_data_per";
+  let j=null, err="";
+  try{ const r=await fetchT(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${fields}`,{},12000); if(r.ok||r.status===404) j=await r.json(); else err="Open Food Facts "+r.status; }catch(e){ err=e.message; }
+  if(!j&&relayUrl()){ try{ const r=await fetchT(`${relayUrl()}/off/${code}`,{headers:S.settings.relayKey?{"x-relay-key":S.settings.relayKey}:{}},12000); if(r.ok||r.status===404) j=await r.json(); }catch(e){ err=e.message; } }
+  if(!j){ openCustomFood(meal,null,{barcode:code,why:" – the lookup failed ("+err+")."}); return; }
+  const pr=j.status===1||j.product?j.product:null; const f=pr&&offToFood(code,pr);
+  if(!f){ toast(pr?"Found, but without calories – please add them from the label":"Not in Open Food Facts yet"); openCustomFood(meal,null,{barcode:code,name:pr?(pr.product_name||""):""}); return; }
+  S.custom=S.custom.filter(x=>x.id!==f.id); S.custom.unshift(f); pushRecent(f.id); save(); openPortion(f.id,meal); toast("📦 "+f.name);
 }
 
 /* ======================= EXERCISE ======================= */
@@ -964,33 +1073,28 @@ function openGoals(){
 function renderMore(){
   const g=S.goals;
   return `<div class="card"><h2>Goals</h2><div class="sm">${r0(g.kcal)} kcal · P ${g.pPct}% / C ${g.cPct}% / F ${g.fPct}% · ${g.water} glasses water</div><button class="btn sec blk" style="margin-top:10px" onclick="openGoals()">Edit goals</button></div>
-  <div class="card"><h2>My foods <small>${S.custom.length}</small></h2><div class="list">${S.custom.map(f=>`<div class="li" onclick="openCustomFood(null,'${f.id}')"><div class="grow">${esc(f.name)}<div class="mut sm">${r0(f.kcal)} kcal / 100 g</div></div>›</div>`).join("")||`<div class="empty">Add foods from nutrition labels.</div>`}</div><button class="btn sec blk" style="margin-top:8px" onclick="openCustomFood()">＋ New food</button></div>
+  <div class="card"><h2>My foods <small>${S.custom.length}</small></h2><div class="list">${S.custom.map(f=>`<div class="li" onclick="openCustomFood(null,'${f.id}')"><div class="grow">${esc(f.name)}<div class="mut sm">${r0(f.kcal)} kcal / 100 ${f.unit==="ml"?"ml":"g"}${f.barcode?" · 📦 "+esc(f.barcode):""}</div></div>›</div>`).join("")||`<div class="empty">Add foods from nutrition labels.</div>`}</div><button class="btn sec blk" style="margin-top:8px" onclick="openCustomFood()">＋ New food</button></div>
   <div class="card"><h2>Saved meals <small>${S.saved.length}</small></h2><button class="btn sec blk" onclick="openSavedMeals(guessMeal())">View saved meals</button></div>
   <div class="card"><h2>🔑 Keys file</h2>
     <p class="mut sm" style="margin-top:0">Keep fueltrack-keys.txt in Files / iCloud Drive (never on GitHub). Edit it when a key changes, then load it here.</p>
     <div class="grid2"><button class="btn" onclick="loadKeysFile()">📄 Load keys file</button><button class="btn sec" onclick="pasteKeys()">📋 Paste keys</button></div>
-    <div class="mut sm" style="margin-top:8px">Gemini: ${esc(mask(S.settings.geminiKey))} · Claude: ${esc(mask(S.settings.apiKey))} · OpenRouter: ${esc(mask(S.settings.openrouterKey))} · Using: ${S.settings.provider==="gemini"?"Gemini":"Claude"}</div></div>
-  <div class="card"><h2>AI photo recognition (optional)</h2>
-    <p class="mut sm" style="margin-top:0">The app works fully offline. With an API key, the Snap button identifies food and estimates calories automatically when you have internet. The key stays on this phone and photos go straight to the provider.</p>
-    <div class="seg" id="prov"><button data-p="gemini" class="${S.settings.provider==='gemini'?'on':''}" onclick="S.settings.provider='gemini';save();render()">Google Gemini</button><button data-p="anthropic" class="${S.settings.provider==='anthropic'?'on':''}" onclick="S.settings.provider='anthropic';save();render()">Claude</button></div>
-    ${S.settings.provider==='gemini'?`
-    <label class="f">Gemini API key</label><input type="password" id="ak" value="${esc(S.settings.geminiKey)}" placeholder="AIza…" autocomplete="off">
-    <label class="f">Model</label><input type="text" id="am" value="${esc(S.settings.geminiModel)}">
-    <div class="mut sm" style="margin-top:6px">Get a free key at aistudio.google.com → Get API key. "gemini-flash-latest" always uses Google's newest Flash model.</div>
-    <button class="btn sec blk" style="margin-top:10px" onclick="const t=saveAISettings();toast('Saved ('+({gemini:'Gemini',anthropic:'Claude',openrouter:'OpenRouter backup'}[t])+')');render()">Save AI settings</button>`:`
-    <label class="f">Anthropic API key</label><input type="password" id="ak" value="${esc(S.settings.apiKey)}" placeholder="sk-ant-…" autocomplete="off">
-    <label class="f">Model</label><input type="text" id="am" value="${esc(S.settings.model)}">
-    <button class="btn sec blk" style="margin-top:10px" onclick="const t=saveAISettings();toast('Saved ('+({gemini:'Gemini',anthropic:'Claude',openrouter:'OpenRouter backup'}[t])+')');render()">Save AI settings</button>`}
-    <button class="btn ghost blk" onclick="testAI()">Test connection</button></div>
-  <div class="card"><h2>Backup AI: OpenRouter (free)</h2>
-    <p class="mut sm" style="margin-top:0">Used automatically when ${esc(primaryName())} hits its daily limit, is overloaded or fails. Also used on its own if no other key is set. Get a free key at openrouter.ai → Keys.</p>
-    <label class="f">OpenRouter API key</label><input type="password" id="ork" value="${esc(S.settings.openrouterKey)}" placeholder="sk-or-v1-…" autocomplete="off">
-    <label class="f">Model</label><input type="text" id="orm" value="${esc(S.settings.openrouterModel)}">
-    <div class="mut sm" style="margin-top:6px">"openrouter/free" picks a free vision model automatically. To pin one, paste a model id ending in ":free" from openrouter.ai/models.</div>
-    <div class="grid2" style="margin-top:10px"><button class="btn sec" onclick="saveOR();toast('Backup saved')">Save</button><button class="btn sec" onclick="testOR()">Test backup</button></div></div>
+    <div class="mut sm" style="margin-top:8px">Groq: ${esc(mask(S.settings.groqKey))} · Mistral: ${esc(mask(S.settings.mistralKey))} · Gemini: ${esc(mask(S.settings.geminiKey))} · OpenRouter: ${esc(mask(S.settings.openrouterKey))} · Claude: ${esc(mask(S.settings.apiKey))} · Relay: ${relayUrl()?"set":"not set"}</div></div>
+  <div class="card"><h2>🤖 Food recognition AI <small>top to bottom</small></h2>
+    <p class="mut sm" style="margin-top:0">For each photo the app tries the first service; if it's busy, out of free quota or fails, it moves to the next one within seconds.</p>
+    <div class="list">${chain().map((c,k,arr)=>{ const p=PROVIDERS[c.id], st=pStatus(c.id); return `<div class="li" style="gap:8px">
+      <input type="checkbox" ${c.on?"checked":""} onchange="chain()[${k}].on=this.checked;save()" style="width:22px;height:22px;flex:none">
+      <div class="grow" onclick="openProvider('${c.id}')"><div>${k+1}. ${esc(p.name)}</div><div class="mut sm">${esc(pModel(c.id))} · ${esc(st.txt)}</div></div>
+      <button class="btn sec" style="padding:6px 9px;flex:none" ${k===0?"disabled":""} onclick="moveProv(${k},-1)">↑</button>
+      <button class="btn sec" style="padding:6px 9px;flex:none" ${k===arr.length-1?"disabled":""} onclick="moveProv(${k},1)">↓</button></div>`; }).join("")}</div>
+    <div class="mut sm" style="margin-top:8px">Tap a service to add its key, change the model or test it.</div></div>
+  <div class="card"><h2>🛰 Relay <small>${relayUrl()?"connected":"not set"}</small></h2>
+    <p class="mut sm" style="margin-top:0">Groq, Mistral and Cloudflare don't accept requests straight from a web app. A free Cloudflare Worker relays them (setup guide: RELAY-SETUP.md in your FuelTrack folder). It also helps barcode lookups.</p>
+    <label class="f">Relay URL</label><input type="text" id="rlu" value="${esc(S.settings.relayUrl)}" placeholder="https://fueltrack-relay.yourname.workers.dev" autocomplete="off" autocapitalize="off">
+    <label class="f">Relay password</label><input type="password" id="rlk" value="${esc(S.settings.relayKey)}" autocomplete="off">
+    <div class="grid2" style="margin-top:10px"><button class="btn sec" onclick="saveRelay();toast('Relay saved');render()">Save</button><button class="btn sec" onclick="testRelay()">Test relay</button></div></div>
   <div class="card"><h2>Backup</h2><p class="mut sm" style="margin-top:0">Your data lives only on this phone. Export a backup now and then.</p>
     <div class="grid2"><button class="btn sec" onclick="exportData()">⬇️ Export</button><button class="btn sec" onclick="$('#importInput').click()">⬆️ Import</button></div></div>
-  <div class="card"><h2>About</h2><div class="mut sm">FuelTrack v1.9 · ${FOODS.length} built-in foods · Calorie estimates are approximate; not medical advice.</div>
+  <div class="card"><h2>About</h2><div class="mut sm">FuelTrack v2.0 · ${FOODS.length} built-in foods · Calorie estimates are approximate; not medical advice.</div>
     <button class="btn danger blk" onclick="resetAll()">Erase all data</button></div>`;
 }
 async function exportData(){
